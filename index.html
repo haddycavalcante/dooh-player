@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Player DOOH — Exemplo Funcionando</title>
+  <title>Player DOOH — Pérola Azul</title>
   <style>
     html, body {
       height: 100%; margin: 0; background: #000; color: #fff; font-family: Arial, sans-serif;
@@ -34,7 +34,7 @@
       pointer-events: auto;
       z-index: 10;
     }
-    img.ad-img, video.ad-video {
+    video.ad-video {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
@@ -93,18 +93,16 @@
 </div>
 
 <script>
-  const ADS_DURATION_MS = 10000; // 10 segundos
+  const ADS_DURATION_MS = 10000; // 10 segundos para notícias
 
-  // 🔹 EXEMPLOS FUNCIONANDO
-  // Quando for trocar para seus arquivos no Google Drive:
-  // Use sempre: https://drive.google.com/uc?export=download&id=SEU_ID
+  // 🔹 Seus 3 vídeos no formato correto para streaming
   const ADS = [
-    { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/800px-Fronalpstock_big.jpg', duration: ADS_DURATION_MS },
-    { type: 'video', src: 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4', duration: null },
-    { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Herbstwald_IMG_2348.jpg/800px-Herbstwald_IMG_2348.jpg', duration: ADS_DURATION_MS },
+    { type: 'video', src: 'https://drive.google.com/uc?export=download&id=1GGpsYRKXX38wwnhYowN_G2PqOACq-0SZ', duration: null },
+    { type: 'video', src: 'https://drive.google.com/uc?export=download&id=1tb7QsKqS8K6hgc_nGxvzaMupOWv0IkXp', duration: null },
+    { type: 'video', src: 'https://drive.google.com/uc?export=download&id=148eDG01g4YQJ7YnwWNGLxLlKLfRuF587', duration: null },
   ];
 
-  // 🔹 Widget de notícias do G1 via FeedWind
+  // 🔹 Widget de notícias do G1
   const RSS_IFRAME_HTML = `
     <iframe
       class="news-frame"
@@ -123,32 +121,27 @@
 
   function buildSlides() {
     for (let i = 0; i < ADS.length; i++) {
+      // Vídeo
       const ad = ADS[i];
       let adEl = document.createElement('div');
       adEl.className = 'slide';
       adEl.dataset.kind = 'ad';
 
-      if (ad.type === 'image') {
-        const img = document.createElement('img');
-        img.src = ad.src;
-        img.className = 'ad-img';
-        img.onerror = () => nextSlide();
-        adEl.appendChild(img);
-      } else if (ad.type === 'video') {
-        const video = document.createElement('video');
-        video.src = ad.src;
-        video.className = 'ad-video';
-        video.preload = 'auto';
-        video.controls = false;
-        video.autoplay = false;
-        video.muted = true;
-        video.playsInline = true;
-        video.onerror = () => nextSlide();
-        adEl.appendChild(video);
-      }
+      const video = document.createElement('video');
+      video.src = ad.src;
+      video.className = 'ad-video';
+      video.preload = 'auto';
+      video.controls = false;
+      video.autoplay = false;
+      video.muted = true;
+      video.playsInline = true;
+      video.onerror = () => nextSlide();
+      adEl.appendChild(video);
+
       slides.push(adEl);
       slidesContainer.appendChild(adEl);
 
+      // Notícia
       const newsEl = document.createElement('div');
       newsEl.className = 'slide';
       newsEl.dataset.kind = 'news';
@@ -185,18 +178,12 @@
     const kind = slide.dataset.kind;
 
     if (kind === 'ad') {
-      const media = slide.querySelector('img.ad-img, video.ad-video');
-      if (media.tagName === 'VIDEO') {
-        media.currentTime = 0;
-        media.play();
-        media.onended = () => {
-          if (!isPaused) nextSlide();
-        };
-      } else {
-        timer = setTimeout(() => {
-          if (!isPaused) nextSlide();
-        }, ADS_DURATION_MS);
-      }
+      const video = slide.querySelector('video.ad-video');
+      video.currentTime = 0;
+      video.play();
+      video.onended = () => {
+        if (!isPaused) nextSlide();
+      };
     } else if (kind === 'news') {
       timer = setTimeout(() => {
         if (!isPaused) nextSlide();
@@ -245,4 +232,3 @@
 
 </body>
 </html>
-
