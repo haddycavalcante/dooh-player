@@ -34,10 +34,10 @@
       pointer-events: auto;
       z-index: 10;
     }
-    video.ad-video {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
+    iframe.video-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
     }
     iframe.news-frame {
       width: 100%;
@@ -93,23 +93,21 @@
 </div>
 
 <script>
-  const ADS_DURATION_MS = 10000; // 10 segundos para notícias
+  const NEWS_DURATION_MS = 15000; // 15 segundos para notícias
 
-  // 🔹 Seus 3 vídeos no formato correto para streaming
-  const ADS = [
-    { type: 'video', src: 'https://drive.google.com/uc?export=download&id=1GGpsYRKXX38wwnhYowN_G2PqOACq-0SZ', duration: null },
-    { type: 'video', src: 'https://drive.google.com/uc?export=download&id=1tb7QsKqS8K6hgc_nGxvzaMupOWv0IkXp', duration: null },
-    { type: 'video', src: 'https://drive.google.com/uc?export=download&id=148eDG01g4YQJ7YnwWNGLxLlKLfRuF587', duration: null },
+  // Seus 3 vídeos do YouTube
+  const VIDEOS = [
+    "https://www.youtube.com/embed/lU2KdIdSeKo?autoplay=1&mute=1&controls=0&rel=0&showinfo=0&modestbranding=1&enablejsapi=1",
+    "https://www.youtube.com/embed/IVYB6a_id-o?autoplay=1&mute=1&controls=0&rel=0&showinfo=0&modestbranding=1&enablejsapi=1",
+    "https://www.youtube.com/embed/vaGZGAos9FY?autoplay=1&mute=1&controls=0&rel=0&showinfo=0&modestbranding=1&enablejsapi=1"
   ];
 
-  // 🔹 Widget de notícias do G1
+  // RSS do G1, só com iframe simples direto do site
   const RSS_IFRAME_HTML = `
     <iframe
       class="news-frame"
-      src="https://feed.mikle.com/widget/v2/148908/?preloader-text=Carregando%20not%C3%ADcias...&amp;feed=https://g1.globo.com/dynamo/brasil/rss2.xml"
-      scrolling="no"
-      allowtransparency="true"
-      frameborder="0"
+      src="https://g1.globo.com/dynamo/brasil/rss2.xml"
+      sandbox="allow-scripts allow-same-origin"
     ></iframe>
   `;
 
@@ -119,35 +117,47 @@
   let timer = null;
   let isPaused = false;
 
+  function createVideoSlide(src) {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    slide.dataset.kind = 'video';
+
+    const iframe = document.createElement('iframe');
+    iframe.className = 'video-frame';
+    iframe.src = src;
+    iframe.allow = 'autoplay; encrypted-media';
+    iframe.allowFullscreen = true;
+    slide.appendChild(iframe);
+
+    return slide;
+  }
+
+  function createNewsSlide() {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    slide.dataset.kind = 'news';
+
+    // Como o RSS do G1 não permite embed direto amigável, vamos usar um proxy grátis
+    // Usei um widget simples com proxy para CORS
+    slide.innerHTML = `
+      <iframe class="news-frame"
+        src="https://feed.mikle.com/widget/v2/148908/?preloader-text=Carregando%20notícias...&feed=https://g1.globo.com/dynamo/brasil/rss2.xml"
+        scrolling="no"
+        allowtransparency="true"
+        frameborder="0">
+      </iframe>
+    `;
+    return slide;
+  }
+
   function buildSlides() {
-    for (let i = 0; i < ADS.length; i++) {
-      // Vídeo
-      const ad = ADS[i];
-      let adEl = document.createElement('div');
-      adEl.className = 'slide';
-      adEl.dataset.kind = 'ad';
+    for (let i = 0; i < VIDEOS.length; i++) {
+      slides.push(createVideoSlide(VIDEOS[i]));
+      slidesContainer.appendChild(slides[slides.length - 1]);
 
-      const video = document.createElement('video');
-      video.src = ad.src;
-      video.className = 'ad-video';
-      video.preload = 'auto';
-      video.controls = false;
-      video.autoplay = false;
-      video.muted = true;
-      video.playsInline = true;
-      video.onerror = () => nextSlide();
-      adEl.appendChild(video);
-
-      slides.push(adEl);
-      slidesContainer.appendChild(adEl);
-
-      // Notícia
-      const newsEl = document.createElement('div');
-      newsEl.className = 'slide';
-      newsEl.dataset.kind = 'news';
-      newsEl.innerHTML = RSS_IFRAME_HTML;
-      slides.push(newsEl);
-      slidesContainer.appendChild(newsEl);
+      const newsSlide = createNewsSlide();
+      slides.push(newsSlide);
+      slidesContainer.appendChild(newsSlide);
     }
   }
 
@@ -177,38 +187,35 @@
     const slide = slides[currentIndex];
     const kind = slide.dataset.kind;
 
-    if (kind === 'ad') {
-      const video = slide.querySelector('video.ad-video');
-      video.currentTime = 0;
-      video.play();
-      video.onended = () => {
+    if (kind === 'video') {
+      // Recarrega o iframe para reiniciar o vídeo automaticamente
+      const iframe = slide.querySelector('iframe.video-frame');
+      if (iframe) {
+        // Reinicia o vídeo apagando e recriando src para reiniciar autoplay
+        const src = iframe.src;
+        iframe.src = '';
+        setTimeout(() => {
+          iframe.src = src;
+        }, 100);
+      }
+      // Vamos dar um tempo fixo de 30 segundos para cada vídeo (não dá pra detectar fim no iframe YouTube sem API complexa)
+      timer = setTimeout(() => {
         if (!isPaused) nextSlide();
-      };
+      }, 30000);
     } else if (kind === 'news') {
       timer = setTimeout(() => {
         if (!isPaused) nextSlide();
-      }, ADS_DURATION_MS);
+      }, NEWS_DURATION_MS);
     }
   }
 
   document.getElementById('pauseBtn').addEventListener('click', () => {
     isPaused = !isPaused;
     const pauseBtn = document.getElementById('pauseBtn');
+    pauseBtn.textContent = isPaused ? '▶ Continuar' : '⏸ Pausar';
     if (isPaused) {
-      pauseBtn.textContent = '▶ Continuar';
-      const slide = slides[currentIndex];
-      if (slide.dataset.kind === 'ad') {
-        const video = slide.querySelector('video.ad-video');
-        if (video && !video.paused) video.pause();
-      }
       clearTimeout(timer);
     } else {
-      pauseBtn.textContent = '⏸ Pausar';
-      const slide = slides[currentIndex];
-      if (slide.dataset.kind === 'ad') {
-        const video = slide.querySelector('video.ad-video');
-        if (video && video.paused) video.play();
-      }
       startTimerForCurrentSlide();
     }
   });
