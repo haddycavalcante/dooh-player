@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Player DOOH — Pérola Azul</title>
+  <title>Player DOOH</title>
   <style>
     html, body {
       height: 100%; margin: 0; background: #000; color: #fff; font-family: Arial, sans-serif;
@@ -44,24 +44,44 @@
       width: 100%;
       height: 100%;
       border: none;
+      background: #fff;
+      color: #000;
     }
-    #branding {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      font-weight: 700;
-      font-size: 18px;
-      opacity: 0.8;
-      z-index: 20;
+    #controls {
+      height: 48px;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    button {
+      background: #1a73e8;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
       user-select: none;
+      font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background: #155ab6;
     }
   </style>
 </head>
 <body>
 
 <div id="player">
-  <div id="branding">Pérola Azul</div>
   <div id="slides"></div>
+</div>
+
+<div id="controls">
+  <button id="prevBtn">◀ Anterior</button>
+  <button id="pauseBtn">⏸ Pausar</button>
+  <button id="nextBtn">Próximo ▶</button>
 </div>
 
 <script>
@@ -73,11 +93,12 @@
     { type: 'video', src: 'https://www.dropbox.com/scl/fi/p2ok0c484ife4zzttbbz8/Se-a-luz-do-sol-n-o-para-de-brilhar.mp4?raw=1' },
   ];
 
+  // iframe simples para notícias (G1 não tem um player próprio, esse iframe pode ficar meio cru)
   const RSS_IFRAME_HTML = `
     <iframe
       class="news-frame"
       src="https://g1.globo.com/dynamo/brasil/rss2.xml"
-      scrolling="no"
+      scrolling="yes"
       allowtransparency="true"
       frameborder="0"
     ></iframe>
@@ -91,7 +112,7 @@
 
   function buildSlides() {
     for (let i = 0; i < ADS.length; i++) {
-      // Video slide
+      // vídeo
       const ad = ADS[i];
       let adEl = document.createElement('div');
       adEl.className = 'slide';
@@ -101,8 +122,8 @@
       video.src = ad.src;
       video.className = 'ad-video';
       video.preload = 'auto';
-      video.controls = true;  // controles ativados para teste
-      video.autoplay = true;
+      video.controls = true;  // controles visíveis
+      video.autoplay = false; // autoplay desativado, controla via JS
       video.muted = true;
       video.playsInline = true;
 
@@ -116,7 +137,7 @@
       slides.push(adEl);
       slidesContainer.appendChild(adEl);
 
-      // News slide
+      // notícia
       const newsEl = document.createElement('div');
       newsEl.className = 'slide';
       newsEl.dataset.kind = 'news';
@@ -136,6 +157,12 @@
   function nextSlide() {
     let nextIndex = (currentIndex + 1) % slides.length;
     showSlide(nextIndex);
+    startTimerForCurrentSlide();
+  }
+
+  function prevSlide() {
+    let prevIndex = (currentIndex - 1 + slides.length) % slides.length;
+    showSlide(prevIndex);
     startTimerForCurrentSlide();
   }
 
@@ -159,6 +186,40 @@
       }, ADS_DURATION_MS);
     }
   }
+
+  document.getElementById('pauseBtn').addEventListener('click', () => {
+    isPaused = !isPaused;
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (isPaused) {
+      pauseBtn.textContent = '▶ Continuar';
+      const slide = slides[currentIndex];
+      if (slide.dataset.kind === 'ad') {
+        const video = slide.querySelector('video.ad-video');
+        if (video && !video.paused) video.pause();
+      }
+      clearTimeout(timer);
+    } else {
+      pauseBtn.textContent = '⏸ Pausar';
+      const slide = slides[currentIndex];
+      if (slide.dataset.kind === 'ad') {
+        const video = slide.querySelector('video.ad-video');
+        if (video && video.paused) video.play();
+      }
+      startTimerForCurrentSlide();
+    }
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    isPaused = false;
+    document.getElementById('pauseBtn').textContent = '⏸ Pausar';
+    nextSlide();
+  });
+
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    isPaused = false;
+    document.getElementById('pauseBtn').textContent = '⏸ Pausar';
+    prevSlide();
+  });
 
   buildSlides();
   showSlide(0);
