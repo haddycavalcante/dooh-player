@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Player DOOH — Pérola Azul</title>
+  <style>
+    html, body {
+      height: 100%; margin: 0; background: #000; color: #fff; font-family: Arial, sans-serif;
+      display: flex; flex-direction: column;
+    }
+    #player {
+      flex: 1;
+      position: relative;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+      background: #000;
+    }
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      z-index: 10;
+    }
+    img.ad-img, video.ad-video {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    iframe.news-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    #controls {
+      height: 48px;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    button {
+      background: #1a73e8;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background: #155ab6;
+    }
+    #branding {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      font-weight: 700;
+      font-size: 18px;
+      opacity: 0.8;
+      z-index: 20;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="player">
+  <div id="branding">Pérola Azul</div>
+  <div id="slides"></div>
+</div>
+
+<div id="controls">
+  <button id="prevBtn">◀ Anterior</button>
+  <button id="pauseBtn">⏸ Pausar</button>
+  <button id="nextBtn">Próximo ▶</button>
+</div>
+
+<script>
+  const ADS_DURATION_MS = 10000; // 10 segundos para imagens e notícias
+  // Lista dos anúncios com links diretos do Google Drive
+  const ADS = [
+    { type: 'image', src: 'https://drive.google.com/uc?export=view&id=1GGpsYRKXX38wwnhYowN_G2PqOACq-0SZ', duration: ADS_DURATION_MS },
+    { type: 'video', src: 'https://drive.google.com/uc?export=view&id=1tb7QsKqS8K6hgc_nGxvzaMupOWv0IkXp', duration: null }, // vídeo controla duração
+    { type: 'image', src: 'https://drive.google.com/uc?export=view&id=148eDG01g4YQJ7YnwWNGLxLlKLfRuF587', duration: ADS_DURATION_MS },
+  ];
+
+  // Iframe do widget de notícias (feed G1) via FeedWind, embed básico
+  const RSS_IFRAME_HTML = `
+    <iframe
+      class="news-frame"
+      src="https://feed.mikle.com/widget/v2/72895/?feed=https://g1.globo.com/dynamo/brasil/rss2.xml"
+      scrolling="no"
+      allowtransparency="true"
+      frameborder="0"
+    ></iframe>
+  `;
+
+  const slidesContainer = document.getElementById('slides');
+  let slides = [];
+  let currentIndex = 0;
+  let timer = null;
+  let isPaused = false;
+
+  // Monta os slides: anúncios e notícias, intercalando
+  // sequência: ad 0, news, ad 1, news, ad 2, news, ...
+  function buildSlides() {
+    for (let i = 0; i < ADS.length; i++) {
+      // anúncio
+      const ad = ADS[i];
+      let adEl = document.createElement('div');
+      adEl.className = 'slide';
+      adEl.dataset.kind = 'ad';
+
+      if (ad.type === 'image') {
+        const img = document.createElement('img');
+        img.src = ad.src;
+        img.className = 'ad-img';
+        adEl.appendChild(img);
+      } else if (ad.type === 'video') {
+        const video = document.createElement('video');
+        video.src = ad.src;
+        video.className = 'ad-video';
+        video.preload = 'auto';
+        video.controls = false;
+        video.autoplay = false;
+        video.muted = true; // mute para autoplay funcionar em alguns navegadores
+        video.playsInline = true;
+        adEl.appendChild(video);
+      }
+      slides.push(adEl);
+      slidesContainer.appendChild(adEl);
+
+      // notícia (iframe)
+      const newsEl = document.createElement('div');
+      newsEl.className = 'slide';
+      newsEl.dataset.kind = 'news';
+      newsEl.innerHTML = RSS_IFRAME_HTML;
+      slides.push(newsEl);
+      slidesContainer.appendChild(newsEl);
+    }
+  }
+
+  function showSlide(index) {
+    slides.forEach((slide, i) => {
+      slide.classList.toggle('active', i === index);
+    });
+    currentIndex = index;
+  }
+
+  function nextSlide() {
+    let nextIndex = (currentIndex + 1) % slides.length;
+    showSlide(nextIndex);
+    startTimerForCurrentSlide();
+  }
+
+  function prevSlide() {
+    let prevIndex = (currentIndex - 1 + slides.length) % slides.length;
+    showSlide(prevIndex);
+    startTimerForCurrentSlide();
+  }
+
+  // Controla o tempo de exibição conforme tipo do slide
+  function startTimerForCurrentSlide() {
+    clearTimeout(timer);
+    if (isPaused) return;
+
+    const slide = slides[currentIndex];
+    const kind = slide.dataset.kind;
+
+    if (kind === 'ad') {
+      const media = slide.querySelector('img.ad-img, video.ad-video');
+      if (media.tagName === 'VIDEO') {
+        // para o vídeo e espera acabar para avançar
+        media.currentTime = 0;
+        media.play();
+
+        // ao terminar, chama nextSlide()
+        media.onended = () => {
+          if (!isPaused) nextSlide();
+        };
+      } else {
+        // imagem, troca após tempo fixo
+        timer = setTimeout(() => {
+          if (!isPaused) nextSlide();
+        }, ADS_DURATION_MS);
+      }
+    } else if (kind === 'news') {
+      // notícias, tempo fixo
+      timer = setTimeout(() => {
+        if (!isPaused) nextSlide();
+      }, ADS_DURATION_MS);
+    }
+  }
+
+  // Botões controles
+  const pauseBtn = document.getElementById('pauseBtn');
+  pauseBtn.addEventListener('click', () => {
+    isPaused = !isPaused;
+    if (isPaused) {
+      pauseBtn.textContent = '▶ Continuar';
+      // pausa vídeo se estiver em vídeo
+      const slide = slides[currentIndex];
+      if (slide.dataset.kind === 'ad') {
+        const video = slide.querySelector('video.ad-video');
+        if (video && !video.paused) video.pause();
+      }
+      clearTimeout(timer);
+    } else {
+      pauseBtn.textContent = '⏸ Pausar';
+      // retoma timer e vídeo
+      const slide = slides[currentIndex];
+      if (slide.dataset.kind === 'ad') {
+        const video = slide.querySelector('video.ad-video');
+        if (video && video.paused) video.play();
+      }
+      startTimerForCurrentSlide();
+    }
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    isPaused = false;
+    pauseBtn.textContent = '⏸ Pausar';
+    nextSlide();
+  });
+
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    isPaused = false;
+    pauseBtn.textContent = '⏸ Pausar';
+    prevSlide();
+  });
+
+  // Inicializa
+  buildSlides();
+  showSlide(0);
+  startTimerForCurrentSlide();
+
+</script>
+
+</body>
+</html>
