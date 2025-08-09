@@ -1,230 +1,114 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Player DOOH</title>
-  <style>
-    html, body {
-      height: 100%; margin: 0; background: #000; color: #fff; font-family: Arial, sans-serif;
-      display: flex; flex-direction: column;
-    }
-    #player {
-      flex: 1;
-      position: relative;
-      background: #000;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .slide {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.6s ease;
-      background: #000;
-    }
-    .slide.active {
-      opacity: 1;
-      pointer-events: auto;
-      z-index: 10;
-    }
-    video.ad-video {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      background: #000;
-    }
-    iframe.news-frame {
-      width: 100%;
-      height: 100%;
-      border: none;
-      background: #fff;
-      color: #000;
-    }
-    #controls {
-      height: 48px;
-      background: rgba(0,0,0,0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-    }
-    button {
-      background: #1a73e8;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 5px;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      user-select: none;
-      font-size: 16px;
-      transition: background-color 0.3s ease;
-    }
-    button:hover {
-      background: #155ab6;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Player DOOH - Haddy</title>
+<style>
+  body {
+    margin: 0; background: black; color: white;
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh; font-family: Arial, sans-serif;
+    font-size: 2em; text-align: center;
+  }
+  #conteudo {
+    max-width: 90vw; max-height: 90vh;
+  }
+  video, img {
+    max-width: 100%; max-height: 100%;
+  }
+</style>
 </head>
 <body>
-
-<div id="player">
-  <div id="slides"></div>
-</div>
-
-<div id="controls">
-  <button id="prevBtn">◀ Anterior</button>
-  <button id="pauseBtn">⏸ Pausar</button>
-  <button id="nextBtn">Próximo ▶</button>
-</div>
+<div id="conteudo">Carregando...</div>
 
 <script>
-  const ADS_DURATION_MS = 10000; // 10 segundos para notícias
+const sheetID = "1ZqpsA7H2ZQrAYueHmcdMcndvhfN6a793nBDJcm2dRoY";
+const sheetURL = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
 
-  const ADS = [
-    { type: 'video', src: 'https://www.dropbox.com/scl/fi/xvnenufaetwvl5olgo2kh/A-quinta-onda-de-frio-do-ano-vai-deixar-os-pr-ximos-dias-bastante-gelad.mp4?raw=1' },
-    { type: 'video', src: 'https://www.dropbox.com/scl/fi/6nk46k141a79hjptm2e5t/E-eu-n-o-sou-nadinha-diferente.mp4?raw=1' },
-    { type: 'video', src: 'https://www.dropbox.com/scl/fi/p2ok0c484ife4zzttbbz8/Se-a-luz-do-sol-n-o-para-de-brilhar.mp4?raw=1' },
-  ];
+async function carregarPlanilha() {
+  const res = await fetch(sheetURL);
+  const txt = await res.text();
+  const json = JSON.parse(txt.substr(47).slice(0, -2));
+  return json.table.rows.map(r => ({
+    tipo: r.c[0]?.v?.toLowerCase(),
+    conteudo: r.c[1]?.v,
+    duracao: Number(r.c[2]?.v),
+  }));
+}
 
-  // iframe simples para notícias (G1 não tem um player próprio, esse iframe pode ficar meio cru)
-  const RSS_IFRAME_HTML = `
-    <iframe
-      class="news-frame"
-      src="https://g1.globo.com/dynamo/brasil/rss2.xml"
-      scrolling="yes"
-      allowtransparency="true"
-      frameborder="0"
-    ></iframe>
-  `;
+async function carregarRSS(url) {
+  // Usando API pública rss2json para converter RSS em JSON
+  const api = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
+  const res = await fetch(api);
+  const data = await res.json();
+  return data.items.map(item => item.title);
+}
 
-  const slidesContainer = document.getElementById('slides');
-  let slides = [];
-  let currentIndex = 0;
-  let timer = null;
-  let isPaused = false;
+async function iniciarPlayer() {
+  const conteudoDiv = document.getElementById("conteudo");
+  const lista = await carregarPlanilha();
+  let idx = 0;
 
-  function buildSlides() {
-    for (let i = 0; i < ADS.length; i++) {
-      // vídeo
-      const ad = ADS[i];
-      let adEl = document.createElement('div');
-      adEl.className = 'slide';
-      adEl.dataset.kind = 'ad';
-
-      const video = document.createElement('video');
-      video.src = ad.src;
-      video.className = 'ad-video';
-      video.preload = 'auto';
-      video.controls = true;  // controles visíveis
-      video.autoplay = false; // autoplay desativado, controla via JS
-      video.muted = true;
-      video.playsInline = true;
-
-      video.onerror = () => {
-        console.error('Erro ao carregar vídeo:', ad.src);
-        nextSlide();
-      };
-      video.onended = () => nextSlide();
-
-      adEl.appendChild(video);
-      slides.push(adEl);
-      slidesContainer.appendChild(adEl);
-
-      // notícia
-      const newsEl = document.createElement('div');
-      newsEl.className = 'slide';
-      newsEl.dataset.kind = 'news';
-      newsEl.innerHTML = RSS_IFRAME_HTML;
-      slides.push(newsEl);
-      slidesContainer.appendChild(newsEl);
+  async function mostrarItem() {
+    if (lista.length === 0) {
+      conteudoDiv.textContent = "Planilha vazia!";
+      return;
     }
-  }
 
-  function showSlide(index) {
-    slides.forEach((slide, i) => {
-      slide.classList.toggle('active', i === index);
-    });
-    currentIndex = index;
-  }
+    const item = lista[idx];
+    conteudoDiv.innerHTML = "";
 
-  function nextSlide() {
-    let nextIndex = (currentIndex + 1) % slides.length;
-    showSlide(nextIndex);
-    startTimerForCurrentSlide();
-  }
-
-  function prevSlide() {
-    let prevIndex = (currentIndex - 1 + slides.length) % slides.length;
-    showSlide(prevIndex);
-    startTimerForCurrentSlide();
-  }
-
-  function startTimerForCurrentSlide() {
-    clearTimeout(timer);
-    if (isPaused) return;
-
-    const slide = slides[currentIndex];
-    const kind = slide.dataset.kind;
-
-    if (kind === 'ad') {
-      const video = slide.querySelector('video.ad-video');
-      video.currentTime = 0;
+    if (item.tipo === "vídeo" || item.tipo === "video") {
+      const video = document.createElement("video");
+      video.src = item.conteudo;
+      video.autoplay = true;
+      video.controls = false;
+      video.style.maxHeight = "90vh";
+      video.onended = proximoItem;
+      conteudoDiv.appendChild(video);
       video.play();
-      video.onended = () => {
-        if (!isPaused) nextSlide();
-      };
-    } else if (kind === 'news') {
-      timer = setTimeout(() => {
-        if (!isPaused) nextSlide();
-      }, ADS_DURATION_MS);
+    } else if (item.tipo === "imagem" || item.tipo === "image") {
+      const img = document.createElement("img");
+      img.src = item.conteudo;
+      conteudoDiv.appendChild(img);
+      setTimeout(proximoItem, item.duracao * 1000);
+    } else if (item.tipo === "texto" || item.tipo === "text") {
+      conteudoDiv.textContent = item.conteudo;
+      setTimeout(proximoItem, item.duracao * 1000);
+    } else if (item.tipo === "rss" || item.tipo === "notícia" || item.tipo === "noticia") {
+      const noticias = await carregarRSS(item.conteudo);
+      let i = 0;
+
+      function mostrarNoticias() {
+        if (noticias.length === 0) {
+          conteudoDiv.textContent = "Nenhuma notícia disponível.";
+          setTimeout(proximoItem, item.duracao * 1000);
+          return;
+        }
+        conteudoDiv.textContent = noticias[i];
+        i++;
+        if (i < noticias.length) {
+          setTimeout(mostrarNoticias, item.duracao * 1000);
+        } else {
+          proximoItem();
+        }
+      }
+      mostrarNoticias();
+    } else {
+      // Tipo desconhecido, pula pro próximo
+      proximoItem();
     }
   }
 
-  document.getElementById('pauseBtn').addEventListener('click', () => {
-    isPaused = !isPaused;
-    const pauseBtn = document.getElementById('pauseBtn');
-    if (isPaused) {
-      pauseBtn.textContent = '▶ Continuar';
-      const slide = slides[currentIndex];
-      if (slide.dataset.kind === 'ad') {
-        const video = slide.querySelector('video.ad-video');
-        if (video && !video.paused) video.pause();
-      }
-      clearTimeout(timer);
-    } else {
-      pauseBtn.textContent = '⏸ Pausar';
-      const slide = slides[currentIndex];
-      if (slide.dataset.kind === 'ad') {
-        const video = slide.querySelector('video.ad-video');
-        if (video && video.paused) video.play();
-      }
-      startTimerForCurrentSlide();
-    }
-  });
+  function proximoItem() {
+    idx = (idx + 1) % lista.length;
+    mostrarItem();
+  }
 
-  document.getElementById('nextBtn').addEventListener('click', () => {
-    isPaused = false;
-    document.getElementById('pauseBtn').textContent = '⏸ Pausar';
-    nextSlide();
-  });
+  mostrarItem();
+}
 
-  document.getElementById('prevBtn').addEventListener('click', () => {
-    isPaused = false;
-    document.getElementById('pauseBtn').textContent = '⏸ Pausar';
-    prevSlide();
-  });
-
-  buildSlides();
-  showSlide(0);
-  startTimerForCurrentSlide();
+iniciarPlayer();
 </script>
-
 </body>
 </html>
