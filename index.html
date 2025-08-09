@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Player DOOH — Pérola Azul</title>
+  <title>Player DOOH — Exemplo Funcionando</title>
   <style>
     html, body {
       height: 100%; margin: 0; background: #000; color: #fff; font-family: Arial, sans-serif;
@@ -93,19 +93,22 @@
 </div>
 
 <script>
-  const ADS_DURATION_MS = 10000; // 10 segundos para imagens e notícias
-  // Lista dos anúncios com links diretos do Google Drive
+  const ADS_DURATION_MS = 10000; // 10 segundos
+
+  // 🔹 EXEMPLOS FUNCIONANDO
+  // Quando for trocar para seus arquivos no Google Drive:
+  // Use sempre: https://drive.google.com/uc?export=download&id=SEU_ID
   const ADS = [
-    { type: 'image', src: 'https://drive.google.com/uc?export=view&id=1GGpsYRKXX38wwnhYowN_G2PqOACq-0SZ', duration: ADS_DURATION_MS },
-    { type: 'video', src: 'https://drive.google.com/uc?export=view&id=1tb7QsKqS8K6hgc_nGxvzaMupOWv0IkXp', duration: null }, // vídeo controla duração
-    { type: 'image', src: 'https://drive.google.com/uc?export=view&id=148eDG01g4YQJ7YnwWNGLxLlKLfRuF587', duration: ADS_DURATION_MS },
+    { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/800px-Fronalpstock_big.jpg', duration: ADS_DURATION_MS },
+    { type: 'video', src: 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4', duration: null },
+    { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Herbstwald_IMG_2348.jpg/800px-Herbstwald_IMG_2348.jpg', duration: ADS_DURATION_MS },
   ];
 
-  // Iframe do widget de notícias (feed G1) via FeedWind, embed básico
+  // 🔹 Widget de notícias do G1 via FeedWind
   const RSS_IFRAME_HTML = `
     <iframe
       class="news-frame"
-      src="https://feed.mikle.com/widget/v2/72895/?feed=https://g1.globo.com/dynamo/brasil/rss2.xml"
+      src="https://feed.mikle.com/widget/v2/148908/?preloader-text=Carregando%20not%C3%ADcias...&amp;feed=https://g1.globo.com/dynamo/brasil/rss2.xml"
       scrolling="no"
       allowtransparency="true"
       frameborder="0"
@@ -118,11 +121,8 @@
   let timer = null;
   let isPaused = false;
 
-  // Monta os slides: anúncios e notícias, intercalando
-  // sequência: ad 0, news, ad 1, news, ad 2, news, ...
   function buildSlides() {
     for (let i = 0; i < ADS.length; i++) {
-      // anúncio
       const ad = ADS[i];
       let adEl = document.createElement('div');
       adEl.className = 'slide';
@@ -132,6 +132,7 @@
         const img = document.createElement('img');
         img.src = ad.src;
         img.className = 'ad-img';
+        img.onerror = () => nextSlide();
         adEl.appendChild(img);
       } else if (ad.type === 'video') {
         const video = document.createElement('video');
@@ -140,14 +141,14 @@
         video.preload = 'auto';
         video.controls = false;
         video.autoplay = false;
-        video.muted = true; // mute para autoplay funcionar em alguns navegadores
+        video.muted = true;
         video.playsInline = true;
+        video.onerror = () => nextSlide();
         adEl.appendChild(video);
       }
       slides.push(adEl);
       slidesContainer.appendChild(adEl);
 
-      // notícia (iframe)
       const newsEl = document.createElement('div');
       newsEl.className = 'slide';
       newsEl.dataset.kind = 'news';
@@ -176,7 +177,6 @@
     startTimerForCurrentSlide();
   }
 
-  // Controla o tempo de exibição conforme tipo do slide
   function startTimerForCurrentSlide() {
     clearTimeout(timer);
     if (isPaused) return;
@@ -187,35 +187,28 @@
     if (kind === 'ad') {
       const media = slide.querySelector('img.ad-img, video.ad-video');
       if (media.tagName === 'VIDEO') {
-        // para o vídeo e espera acabar para avançar
         media.currentTime = 0;
         media.play();
-
-        // ao terminar, chama nextSlide()
         media.onended = () => {
           if (!isPaused) nextSlide();
         };
       } else {
-        // imagem, troca após tempo fixo
         timer = setTimeout(() => {
           if (!isPaused) nextSlide();
         }, ADS_DURATION_MS);
       }
     } else if (kind === 'news') {
-      // notícias, tempo fixo
       timer = setTimeout(() => {
         if (!isPaused) nextSlide();
       }, ADS_DURATION_MS);
     }
   }
 
-  // Botões controles
-  const pauseBtn = document.getElementById('pauseBtn');
-  pauseBtn.addEventListener('click', () => {
+  document.getElementById('pauseBtn').addEventListener('click', () => {
     isPaused = !isPaused;
+    const pauseBtn = document.getElementById('pauseBtn');
     if (isPaused) {
       pauseBtn.textContent = '▶ Continuar';
-      // pausa vídeo se estiver em vídeo
       const slide = slides[currentIndex];
       if (slide.dataset.kind === 'ad') {
         const video = slide.querySelector('video.ad-video');
@@ -224,7 +217,6 @@
       clearTimeout(timer);
     } else {
       pauseBtn.textContent = '⏸ Pausar';
-      // retoma timer e vídeo
       const slide = slides[currentIndex];
       if (slide.dataset.kind === 'ad') {
         const video = slide.querySelector('video.ad-video');
@@ -236,22 +228,21 @@
 
   document.getElementById('nextBtn').addEventListener('click', () => {
     isPaused = false;
-    pauseBtn.textContent = '⏸ Pausar';
+    document.getElementById('pauseBtn').textContent = '⏸ Pausar';
     nextSlide();
   });
 
   document.getElementById('prevBtn').addEventListener('click', () => {
     isPaused = false;
-    pauseBtn.textContent = '⏸ Pausar';
+    document.getElementById('pauseBtn').textContent = '⏸ Pausar';
     prevSlide();
   });
 
-  // Inicializa
   buildSlides();
   showSlide(0);
   startTimerForCurrentSlide();
-
 </script>
 
 </body>
 </html>
+
