@@ -2,44 +2,46 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Player Google Drive via iframe</title>
+<title>Player de Vídeos DOOH</title>
 <style>
   body {
-    margin: 0; background: #000;
-    display: flex; justify-content: center; align-items: center;
+    margin: 0;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     height: 100vh;
   }
-  iframe {
-    width: 80vw; height: 45vw; max-width: 1280px; max-height: 720px;
-    border: none;
+  video {
+    max-width: 100%;
+    max-height: 100%;
   }
 </style>
 </head>
 <body>
 
-<iframe id="player" src="" allow="autoplay" allowfullscreen></iframe>
+<video id="player" controls autoplay muted></video>
 
 <script>
-const videos = [
-  "https://drive.google.com/file/d/1GGpsYRKXX38wwnhYowN_G2PqOACq-0SZ/preview",
-  "https://drive.google.com/file/d/1tb7QsKqS8K6hgc_nGxvzaMupOWv0IkXp/preview"
-];
+  const videos = [
+    "https://raw.githubusercontent.com/haddycavalcante/dooh-player/main/A%20quinta%20onda%20de%20frio%20do%20ano%20vai%20deixar%20os%20pr%C3%B3ximos%20dias%20bastante%20gelad.mp4",
+    "https://raw.githubusercontent.com/haddycavalcante/dooh-player/main/E%20eu%20n%C3%A3o%20sou%20nadinha%20diferente.mp4"
+  ];
 
-const player = document.getElementById('player');
-let current = 0;
+  const player = document.getElementById('player');
+  let current = 0;
 
-function playVideo(index) {
-  player.src = videos[index];
-}
+  function playVideo(index) {
+    player.src = videos[index];
+    player.play();
+  }
 
-function proximo() {
-  current = (current + 1) % videos.length;
+  player.addEventListener('ended', () => {
+    current = (current + 1) % videos.length;
+    playVideo(current);
+  });
+
   playVideo(current);
-}
-
-// Como não temos evento de fim para iframe, vamos alternar vídeos a cada 30 segundos
-playVideo(current);
-setInterval(proximo, 30000); // troca a cada 30 segundos, ajuste conforme necessidade
 </script>
 
 </body>
