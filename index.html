@@ -34,38 +34,15 @@
       pointer-events: auto;
       z-index: 10;
     }
-    iframe.video-frame {
-      width: 100%;
-      height: 100%;
-      border: none;
+    video.ad-video {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
     }
     iframe.news-frame {
       width: 100%;
       height: 100%;
       border: none;
-    }
-    #controls {
-      height: 48px;
-      background: rgba(0,0,0,0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-    }
-    button {
-      background: #1a73e8;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 5px;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      user-select: none;
-      font-size: 16px;
-      transition: background-color 0.3s ease;
-    }
-    button:hover {
-      background: #155ab6;
     }
     #branding {
       position: absolute;
@@ -86,28 +63,24 @@
   <div id="slides"></div>
 </div>
 
-<div id="controls">
-  <button id="prevBtn">◀ Anterior</button>
-  <button id="pauseBtn">⏸ Pausar</button>
-  <button id="nextBtn">Próximo ▶</button>
-</div>
-
 <script>
-  const NEWS_DURATION_MS = 15000; // 15 segundos para notícias
+  const ADS_DURATION_MS = 10000; // 10 segundos para notícias
 
-  // Seus 3 vídeos do YouTube
-  const VIDEOS = [
-    "https://www.youtube.com/embed/lU2KdIdSeKo?autoplay=1&mute=1&controls=0&rel=0&showinfo=0&modestbranding=1&enablejsapi=1",
-    "https://www.youtube.com/embed/IVYB6a_id-o?autoplay=1&mute=1&controls=0&rel=0&showinfo=0&modestbranding=1&enablejsapi=1",
-    "https://www.youtube.com/embed/vaGZGAos9FY?autoplay=1&mute=1&controls=0&rel=0&showinfo=0&modestbranding=1&enablejsapi=1"
+  // 🔹 Seus 3 vídeos no formato correto para streaming
+  const ADS = [
+    { type: 'video', src: 'https://www.dropbox.com/scl/fi/xvnenufaetwvl5olgo2kh/A-quinta-onda-de-frio-do-ano-vai-deixar-os-pr-ximos-dias-bastante-gelad.mp4?raw=1', duration: null },
+    { type: 'video', src: 'https://www.dropbox.com/scl/fi/6nk46k141a79hjptm2e5t/E-eu-n-o-sou-nadinha-diferente.mp4?raw=1', duration: null },
+    { type: 'video', src: 'https://www.dropbox.com/scl/fi/p2ok0c484ife4zzttbbz8/Se-a-luz-do-sol-n-o-para-de-brilhar.mp4?raw=1', duration: null },
   ];
 
-  // RSS do G1, só com iframe simples direto do site
+  // 🔹 Feed de notícias do G1
   const RSS_IFRAME_HTML = `
     <iframe
       class="news-frame"
       src="https://g1.globo.com/dynamo/brasil/rss2.xml"
-      sandbox="allow-scripts allow-same-origin"
+      scrolling="no"
+      allowtransparency="true"
+      frameborder="0"
     ></iframe>
   `;
 
@@ -117,47 +90,35 @@
   let timer = null;
   let isPaused = false;
 
-  function createVideoSlide(src) {
-    const slide = document.createElement('div');
-    slide.className = 'slide';
-    slide.dataset.kind = 'video';
-
-    const iframe = document.createElement('iframe');
-    iframe.className = 'video-frame';
-    iframe.src = src;
-    iframe.allow = 'autoplay; encrypted-media';
-    iframe.allowFullscreen = true;
-    slide.appendChild(iframe);
-
-    return slide;
-  }
-
-  function createNewsSlide() {
-    const slide = document.createElement('div');
-    slide.className = 'slide';
-    slide.dataset.kind = 'news';
-
-    // Como o RSS do G1 não permite embed direto amigável, vamos usar um proxy grátis
-    // Usei um widget simples com proxy para CORS
-    slide.innerHTML = `
-      <iframe class="news-frame"
-        src="https://feed.mikle.com/widget/v2/148908/?preloader-text=Carregando%20notícias...&feed=https://g1.globo.com/dynamo/brasil/rss2.xml"
-        scrolling="no"
-        allowtransparency="true"
-        frameborder="0">
-      </iframe>
-    `;
-    return slide;
-  }
-
   function buildSlides() {
-    for (let i = 0; i < VIDEOS.length; i++) {
-      slides.push(createVideoSlide(VIDEOS[i]));
-      slidesContainer.appendChild(slides[slides.length - 1]);
+    for (let i = 0; i < ADS.length; i++) {
+      // Vídeo
+      const ad = ADS[i];
+      let adEl = document.createElement('div');
+      adEl.className = 'slide';
+      adEl.dataset.kind = 'ad';
 
-      const newsSlide = createNewsSlide();
-      slides.push(newsSlide);
-      slidesContainer.appendChild(newsSlide);
+      const video = document.createElement('video');
+      video.src = ad.src;
+      video.className = 'ad-video';
+      video.preload = 'auto';
+      video.controls = false;
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.onended = () => nextSlide();
+      adEl.appendChild(video);
+
+      slides.push(adEl);
+      slidesContainer.appendChild(adEl);
+
+      // Notícia
+      const newsEl = document.createElement('div');
+      newsEl.className = 'slide';
+      newsEl.dataset.kind = 'news';
+      newsEl.innerHTML = RSS_IFRAME_HTML;
+      slides.push(newsEl);
+      slidesContainer.appendChild(newsEl);
     }
   }
 
@@ -187,50 +148,19 @@
     const slide = slides[currentIndex];
     const kind = slide.dataset.kind;
 
-    if (kind === 'video') {
-      // Recarrega o iframe para reiniciar o vídeo automaticamente
-      const iframe = slide.querySelector('iframe.video-frame');
-      if (iframe) {
-        // Reinicia o vídeo apagando e recriando src para reiniciar autoplay
-        const src = iframe.src;
-        iframe.src = '';
-        setTimeout(() => {
-          iframe.src = src;
-        }, 100);
-      }
-      // Vamos dar um tempo fixo de 30 segundos para cada vídeo (não dá pra detectar fim no iframe YouTube sem API complexa)
-      timer = setTimeout(() => {
+    if (kind === 'ad') {
+      const video = slide.querySelector('video.ad-video');
+      video.currentTime = 0;
+      video.play();
+      video.onended = () => {
         if (!isPaused) nextSlide();
-      }, 30000);
+      };
     } else if (kind === 'news') {
       timer = setTimeout(() => {
         if (!isPaused) nextSlide();
-      }, NEWS_DURATION_MS);
+      }, ADS_DURATION_MS);
     }
   }
-
-  document.getElementById('pauseBtn').addEventListener('click', () => {
-    isPaused = !isPaused;
-    const pauseBtn = document.getElementById('pauseBtn');
-    pauseBtn.textContent = isPaused ? '▶ Continuar' : '⏸ Pausar';
-    if (isPaused) {
-      clearTimeout(timer);
-    } else {
-      startTimerForCurrentSlide();
-    }
-  });
-
-  document.getElementById('nextBtn').addEventListener('click', () => {
-    isPaused = false;
-    document.getElementById('pauseBtn').textContent = '⏸ Pausar';
-    nextSlide();
-  });
-
-  document.getElementById('prevBtn').addEventListener('click', () => {
-    isPaused = false;
-    document.getElementById('pauseBtn').textContent = '⏸ Pausar';
-    prevSlide();
-  });
 
   buildSlides();
   showSlide(0);
