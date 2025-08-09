@@ -2,26 +2,27 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Player de Vídeos Drive</title>
+<title>Player Google Drive via iframe</title>
 <style>
   body {
     margin: 0; background: #000;
     display: flex; justify-content: center; align-items: center;
     height: 100vh;
   }
-  video {
-    max-width: 100%; max-height: 100%;
-    background: black;
+  iframe {
+    width: 80vw; height: 45vw; max-width: 1280px; max-height: 720px;
+    border: none;
   }
 </style>
 </head>
 <body>
-<video id="player" controls autoplay muted></video>
+
+<iframe id="player" src="" allow="autoplay" allowfullscreen></iframe>
 
 <script>
 const videos = [
-  "https://drive.google.com/uc?export=download&id=1GGpsYRKXX38wwnhYowN_G2PqOACq-0SZ",
-  "https://drive.google.com/uc?export=download&id=1tb7QsKqS8K6hgc_nGxvzaMupOWv0IkXp"
+  "https://drive.google.com/file/d/1GGpsYRKXX38wwnhYowN_G2PqOACq-0SZ/preview",
+  "https://drive.google.com/file/d/1tb7QsKqS8K6hgc_nGxvzaMupOWv0IkXp/preview"
 ];
 
 const player = document.getElementById('player');
@@ -29,16 +30,17 @@ let current = 0;
 
 function playVideo(index) {
   player.src = videos[index];
-  player.play();
 }
 
-player.addEventListener('ended', () => {
+function proximo() {
   current = (current + 1) % videos.length;
   playVideo(current);
-});
+}
 
-// Começa tocando o primeiro vídeo
+// Como não temos evento de fim para iframe, vamos alternar vídeos a cada 30 segundos
 playVideo(current);
+setInterval(proximo, 30000); // troca a cada 30 segundos, ajuste conforme necessidade
 </script>
+
 </body>
 </html>
