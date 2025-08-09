@@ -2,58 +2,43 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Player DOOH - Debug</title>
+<title>Player de Vídeos Drive</title>
 <style>
   body {
-    margin: 0; background: black; color: white;
+    margin: 0; background: #000;
     display: flex; justify-content: center; align-items: center;
-    height: 100vh; font-family: Arial, sans-serif;
-    font-size: 1.5em; text-align: center;
-    padding: 1em;
+    height: 100vh;
   }
-  #conteudo {
-    max-width: 90vw; max-height: 90vh;
-  }
-  video, img {
+  video {
     max-width: 100%; max-height: 100%;
+    background: black;
   }
 </style>
 </head>
 <body>
-<div id="conteudo">Carregando...</div>
+<video id="player" controls autoplay muted></video>
 
 <script>
-const sheetID = "1ZqpsA7H2ZQrAYueHmcdMcndvhfN6a793nBDJcm2dRoY";
-const sheetURL = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
+const videos = [
+  "https://drive.google.com/uc?export=download&id=1GGpsYRKXX38wwnhYowN_G2PqOACq-0SZ",
+  "https://drive.google.com/uc?export=download&id=1tb7QsKqS8K6hgc_nGxvzaMupOWv0IkXp"
+];
 
-async function carregarPlanilha() {
-  try {
-    const res = await fetch(sheetURL);
-    const txt = await res.text();
-    const json = JSON.parse(txt.substr(47).slice(0, -2));
-    return json.table.rows.map(r => ({
-      tipo: r.c[0]?.v?.toLowerCase(),
-      conteudo: r.c[1]?.v,
-      duracao: Number(r.c[2]?.v),
-    }));
-  } catch(e) {
-    document.getElementById("conteudo").textContent = "Erro ao carregar planilha: " + e;
-    return [];
-  }
+const player = document.getElementById('player');
+let current = 0;
+
+function playVideo(index) {
+  player.src = videos[index];
+  player.play();
 }
 
-async function iniciarPlayer() {
-  const conteudoDiv = document.getElementById("conteudo");
-  const lista = await carregarPlanilha();
-  if (lista.length === 0) {
-    conteudoDiv.textContent = "Planilha vazia ou erro ao carregar.";
-    return;
-  }
+player.addEventListener('ended', () => {
+  current = (current + 1) % videos.length;
+  playVideo(current);
+});
 
-  let idx = 0;
-
-  async function mostrarItem() {
-    const item = lista[idx];
-    conteudoDiv.innerHTML = "";
-
-    if (!item
+// Começa tocando o primeiro vídeo
+playVideo(current);
+</script>
+</body>
+</html>
