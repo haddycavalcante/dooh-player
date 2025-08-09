@@ -2,13 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Player DOOH - Haddy</title>
+<title>Player DOOH - Debug</title>
 <style>
   body {
     margin: 0; background: black; color: white;
     display: flex; justify-content: center; align-items: center;
     height: 100vh; font-family: Arial, sans-serif;
-    font-size: 2em; text-align: center;
+    font-size: 1.5em; text-align: center;
+    padding: 1em;
   }
   #conteudo {
     max-width: 90vw; max-height: 90vh;
@@ -26,89 +27,33 @@ const sheetID = "1ZqpsA7H2ZQrAYueHmcdMcndvhfN6a793nBDJcm2dRoY";
 const sheetURL = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
 
 async function carregarPlanilha() {
-  const res = await fetch(sheetURL);
-  const txt = await res.text();
-  const json = JSON.parse(txt.substr(47).slice(0, -2));
-  return json.table.rows.map(r => ({
-    tipo: r.c[0]?.v?.toLowerCase(),
-    conteudo: r.c[1]?.v,
-    duracao: Number(r.c[2]?.v),
-  }));
-}
-
-async function carregarRSS(url) {
-  // Usando API pública rss2json para converter RSS em JSON
-  const api = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
-  const res = await fetch(api);
-  const data = await res.json();
-  return data.items.map(item => item.title);
+  try {
+    const res = await fetch(sheetURL);
+    const txt = await res.text();
+    const json = JSON.parse(txt.substr(47).slice(0, -2));
+    return json.table.rows.map(r => ({
+      tipo: r.c[0]?.v?.toLowerCase(),
+      conteudo: r.c[1]?.v,
+      duracao: Number(r.c[2]?.v),
+    }));
+  } catch(e) {
+    document.getElementById("conteudo").textContent = "Erro ao carregar planilha: " + e;
+    return [];
+  }
 }
 
 async function iniciarPlayer() {
   const conteudoDiv = document.getElementById("conteudo");
   const lista = await carregarPlanilha();
+  if (lista.length === 0) {
+    conteudoDiv.textContent = "Planilha vazia ou erro ao carregar.";
+    return;
+  }
+
   let idx = 0;
 
   async function mostrarItem() {
-    if (lista.length === 0) {
-      conteudoDiv.textContent = "Planilha vazia!";
-      return;
-    }
-
     const item = lista[idx];
     conteudoDiv.innerHTML = "";
 
-    if (item.tipo === "vídeo" || item.tipo === "video") {
-      const video = document.createElement("video");
-      video.src = item.conteudo;
-      video.autoplay = true;
-      video.controls = false;
-      video.style.maxHeight = "90vh";
-      video.onended = proximoItem;
-      conteudoDiv.appendChild(video);
-      video.play();
-    } else if (item.tipo === "imagem" || item.tipo === "image") {
-      const img = document.createElement("img");
-      img.src = item.conteudo;
-      conteudoDiv.appendChild(img);
-      setTimeout(proximoItem, item.duracao * 1000);
-    } else if (item.tipo === "texto" || item.tipo === "text") {
-      conteudoDiv.textContent = item.conteudo;
-      setTimeout(proximoItem, item.duracao * 1000);
-    } else if (item.tipo === "rss" || item.tipo === "notícia" || item.tipo === "noticia") {
-      const noticias = await carregarRSS(item.conteudo);
-      let i = 0;
-
-      function mostrarNoticias() {
-        if (noticias.length === 0) {
-          conteudoDiv.textContent = "Nenhuma notícia disponível.";
-          setTimeout(proximoItem, item.duracao * 1000);
-          return;
-        }
-        conteudoDiv.textContent = noticias[i];
-        i++;
-        if (i < noticias.length) {
-          setTimeout(mostrarNoticias, item.duracao * 1000);
-        } else {
-          proximoItem();
-        }
-      }
-      mostrarNoticias();
-    } else {
-      // Tipo desconhecido, pula pro próximo
-      proximoItem();
-    }
-  }
-
-  function proximoItem() {
-    idx = (idx + 1) % lista.length;
-    mostrarItem();
-  }
-
-  mostrarItem();
-}
-
-iniciarPlayer();
-</script>
-</body>
-</html>
+    if (!item
