@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Player de Vídeos com Crossfade</title>
+<title>Player de Vídeos com Crossfade e Preload</title>
 <style>
   body, html {
     margin: 0; padding: 0;
@@ -23,15 +23,15 @@
     top: 0; left: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover; /* preenche toda a área */
     background: black;
     transition: opacity 1s ease;
     opacity: 0;
-    pointer-events: none; /* desabilita interação */
+    pointer-events: none;
   }
   video.active {
     opacity: 1;
-    pointer-events: auto; /* só o ativo responde */
+    pointer-events: auto;
   }
 </style>
 </head>
@@ -55,53 +55,50 @@
   let currentVideo = video1;
   let nextVideo = video2;
 
-  // Inicializa o primeiro vídeo
-  currentVideo.src = videos[currentIndex];
-  currentVideo.classList.add('active');
-  currentVideo.play();
+  function playWithPreload(videoElem, src) {
+    return new Promise((resolve) => {
+      videoElem.src = src;
+      videoElem.load();
+      videoElem.oncanplaythrough = () => {
+        videoElem.play();
+        resolve();
+      };
+      // Em caso de erro, tenta tocar mesmo assim para evitar travar
+      videoElem.onerror = () => {
+        videoElem.play();
+        resolve();
+      };
+    });
+  }
 
-  // Função para alternar vídeos com crossfade
-  function next() {
+  async function start() {
+    currentVideo.classList.add('active');
+    await playWithPreload(currentVideo, videos[currentIndex]);
+  }
+
+  async function next() {
     currentIndex = (currentIndex + 1) % videos.length;
 
-    // Prepara o próximo vídeo
-    nextVideo.src = videos[currentIndex];
-    nextVideo.currentTime = 0;
     nextVideo.classList.add('active');
-    nextVideo.play();
+    await playWithPreload(nextVideo, videos[currentIndex]);
 
-    // Faz o crossfade: próximo vídeo aparece, atual some
     currentVideo.classList.remove('active');
+    currentVideo.pause();
 
-    // Depois da transição, pausa o vídeo antigo e troca as referências
-    setTimeout(() => {
-      currentVideo.pause();
+    // troca referências dos vídeos para próxima troca
+    let temp = currentVideo;
+    currentVideo = nextVideo;
+    nextVideo = temp;
 
-      // troca os players para a próxima rodada
-      let temp = currentVideo;
-      currentVideo = nextVideo;
-      nextVideo = temp;
-    }, 1000); // tempo da transição em ms (igual ao CSS)
+    // adiciona listener para quando o novo vídeo acabar, chamar next()
+    currentVideo.onended = next;
   }
 
-  // Quando o vídeo atual terminar, troca para o próximo
-  currentVideo.addEventListener('ended', next);
+  // adiciona listener para o primeiro vídeo acabar
+  currentVideo.onended = next;
 
-  // Para garantir que o evento funcione sempre no vídeo ativo, vamos "atualizar" o listener:
-  // A cada troca, removemos do vídeo antigo e adicionamos no atual:
-  function setupListeners() {
-    video1.removeEventListener('ended', next);
-    video2.removeEventListener('ended', next);
-    currentVideo.addEventListener('ended', next);
-  }
-
-  // Atualiza listeners sempre que troca
-  const observer = new MutationObserver(() => {
-    setupListeners();
-  });
-  observer.observe(document.getElementById('container'), { attributes: true, subtree: true, attributeFilter: ['class'] });
-
-  setupListeners();
+  // inicia player
+  start();
 </script>
 
 </body>
