@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Player de Vídeos com Crossfade e Preload</title>
+<title>Player Vertical 9:16 com Crossfade</title>
 <style>
   body, html {
     margin: 0; padding: 0;
@@ -14,16 +14,16 @@
   }
   #container {
     position: relative;
-    width: 80vw;
-    max-width: 1280px;
-    aspect-ratio: 16 / 9;
+    width: 40vw;
+    max-width: 480px;
+    aspect-ratio: 9 / 16;
   }
   video {
     position: absolute;
     top: 0; left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover; /* preenche toda a área */
+    object-fit: contain;
     background: black;
     transition: opacity 1s ease;
     opacity: 0;
@@ -63,7 +63,6 @@
         videoElem.play();
         resolve();
       };
-      // Em caso de erro, tenta tocar mesmo assim para evitar travar
       videoElem.onerror = () => {
         videoElem.play();
         resolve();
@@ -85,19 +84,15 @@
     currentVideo.classList.remove('active');
     currentVideo.pause();
 
-    // troca referências dos vídeos para próxima troca
     let temp = currentVideo;
     currentVideo = nextVideo;
     nextVideo = temp;
 
-    // adiciona listener para quando o novo vídeo acabar, chamar next()
     currentVideo.onended = next;
   }
 
-  // adiciona listener para o primeiro vídeo acabar
   currentVideo.onended = next;
 
-  // inicia player
   start();
 </script>
 
