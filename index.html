@@ -2,45 +2,23 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Player Vertical 9:16 com Crossfade</title>
+<title>Player Vertical Full Height</title>
 <style>
-  body, html {
-    margin: 0; padding: 0;
-    height: 100vh;
-    background: #000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  #container {
-    position: relative;
-    width: 40vw;
-    max-width: 480px;
-    aspect-ratio: 9 / 16;
+  html, body {
+    margin: 0; padding: 0; height: 100vh; background: #000; display: flex; justify-content: center; align-items: center;
   }
   video {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+    height: 100vh;       /* vídeo ocupa toda a altura da tela */
+    width: auto;         /* largura ajusta proporcionalmente */
     background: black;
-    transition: opacity 1s ease;
-    opacity: 0;
-    pointer-events: none;
-  }
-  video.active {
-    opacity: 1;
-    pointer-events: auto;
+    object-fit: contain; /* mantém proporção e evita corte */
+    display: block;
   }
 </style>
 </head>
 <body>
 
-<div id="container">
-  <video id="video1" muted playsinline></video>
-  <video id="video2" muted playsinline></video>
-</div>
+<video id="player" muted playsinline></video>
 
 <script>
   const videos = [
@@ -48,52 +26,25 @@
     "https://raw.githubusercontent.com/haddycavalcante/dooh-player/main/E%20eu%20n%C3%A3o%20sou%20nadinha%20diferente.mp4"
   ];
 
-  const video1 = document.getElementById('video1');
-  const video2 = document.getElementById('video2');
+  const player = document.getElementById('player');
+  let current = 0;
 
-  let currentIndex = 0;
-  let currentVideo = video1;
-  let nextVideo = video2;
+  function playVideo(index) {
+    player.src = videos[index];
+    player.load();
 
-  function playWithPreload(videoElem, src) {
-    return new Promise((resolve) => {
-      videoElem.src = src;
-      videoElem.load();
-      videoElem.oncanplaythrough = () => {
-        videoElem.play();
-        resolve();
-      };
-      videoElem.onerror = () => {
-        videoElem.play();
-        resolve();
-      };
-    });
+    // Espera carregar suficiente para tocar sem travar
+    player.oncanplaythrough = () => {
+      player.play();
+    };
   }
 
-  async function start() {
-    currentVideo.classList.add('active');
-    await playWithPreload(currentVideo, videos[currentIndex]);
-  }
+  player.addEventListener('ended', () => {
+    current = (current + 1) % videos.length;
+    playVideo(current);
+  });
 
-  async function next() {
-    currentIndex = (currentIndex + 1) % videos.length;
-
-    nextVideo.classList.add('active');
-    await playWithPreload(nextVideo, videos[currentIndex]);
-
-    currentVideo.classList.remove('active');
-    currentVideo.pause();
-
-    let temp = currentVideo;
-    currentVideo = nextVideo;
-    nextVideo = temp;
-
-    currentVideo.onended = next;
-  }
-
-  currentVideo.onended = next;
-
-  start();
+  playVideo(current);
 </script>
 
 </body>
