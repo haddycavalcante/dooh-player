@@ -1,81 +1,435 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Haddyflix</title>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Haddyflix — Simulador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0b0f;--bg2:#14141a;--panel:#0f0f14;--text:#e8e8e8;--muted:#a3a3a3;--accent:#e50914;--accent-2:#b20710;--ok:#22c55e;--warn:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{margin:0;background:radial-gradient(60% 80% at 50% 10%, #1a1a22 0%, var(--bg) 45%, #000 100%);color:var(--text);font-family:'Inter',system-ui,Arial,Helvetica,sans-serif;}
+    a{color:inherit;text-decoration:none}
+    img{display:block;max-width:100%;}
+    button{border:0;cursor:pointer}
+
+    /* ===== Loading ===== */
+    #loading-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;background:linear-gradient(160deg,#000 0%,#0a0a0f 45%,#150d0f 100%);z-index:1000;transition:opacity .6s ease, visibility .6s ease}
+    #loading-screen.hidden{opacity:0;visibility:hidden}
+    .logo{font-weight:800;letter-spacing:.5px;font-size:40px}
+    .logo .accent{color:var(--accent)}
+    .spinner{width:72px;height:72px;border-radius:50%;border:4px solid #2a2a35;border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-bar{width:240px;height:6px;border-radius:999px;background:#20202a;overflow:hidden}
+    .loading-bar > span{display:block;height:100%;width:30%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px;animation:load 1.6s ease-in-out infinite}
+    @keyframes load{0%{transform:translateX(-120%)}50%{transform:translateX(40%)}100%{transform:translateX(220%)}}
+
+    /* ===== Profiles ===== */
+    #profiles-screen{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:40px;opacity:0;transform:translateY(8px);transition:opacity .5s ease, transform .5s ease}
+    #profiles-screen.show{opacity:1;transform:none}
+    #profiles-screen h2{font-size:28px;margin:0;color:#fff}
+    .profiles{display:grid;grid-template-columns:repeat( auto-fit, minmax(140px, 1fr) );gap:26px;max-width:760px;width:100%}
+    .profile-card{background:linear-gradient(180deg,#1d1d28,#121218);border:1px solid #2a2a38;padding:18px;border-radius:20px;display:flex;flex-direction:column;align-items:center;gap:12px;transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease}
+    .profile-card:hover{transform:translateY(-4px) scale(1.03);box-shadow:0 12px 30px rgba(0,0,0,.35);border-color:#3a3a4a}
+    .avatar{width:90px;height:90px;border-radius:18px;overflow:hidden;background:#0f0f14}
+    .profile-name{font-weight:700}
+    .start-btn{margin-top:8px;padding:10px 16px;border-radius:999px;background:var(--accent);color:white;font-weight:700}
+    .start-btn:hover{filter:brightness(1.08)}
+
+    /* ===== App ===== */
+    #app{display:none}
+    #app.show{display:block}
+
+    header.appbar{position:sticky;top:0;z-index:50;backdrop-filter:saturate(120%) blur(10px);background:linear-gradient(180deg,rgba(10,10,14,.75),rgba(10,10,14,.35) 60%,rgba(10,10,14,0));padding:14px 18px}
+    .appbar .bar{display:flex;align-items:center;gap:22px}
+    .appbar .brand{font-weight:800;font-size:24px}
+    .brand .accent{color:var(--accent)}
+    .nav{display:flex;gap:14px;font-weight:600;color:#eaeaea;font-size:14px;flex-wrap:wrap}
+    .nav a{opacity:.85}
+    .nav a:hover{opacity:1}
+    .spacer{flex:1}
+    .profile-mini{display:flex;align-items:center;gap:10px}
+    .profile-mini img{width:28px;height:28px;border-radius:6px}
+    .swap{padding:8px 12px;border-radius:10px;background:transparent;border:1px solid #2a2a38;color:#ddd}
+    .swap:hover{border-color:#3b3b4a}
+
+    /* ===== Hero ===== */
+    .hero{position:relative;min-height:56vh;border-radius:22px;margin:10px 18px 0;overflow:hidden;background:#101018}
+    .hero .bg{position:absolute;inset:0;background:url('https://picsum.photos/seed/haddy-hero/1600/900') center/cover no-repeat;transform:scale(1.08);filter:contrast(1.1) brightness(.85);}
+    .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.3),rgba(0,0,0,.75) 70%,rgba(0,0,0,.95));}
+    .hero-inner{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;padding:28px;gap:12px}
+    .tag{font-size:12px;opacity:.85}
+    .hero-title{font-size: clamp(28px, 5vw, 54px);font-weight:800;letter-spacing:.3px}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;font-weight:700}
+    .btn.primary{background:var(--accent);color:#fff}
+    .btn.ghost{border:1px solid #2e2e3a;color:#eee;background:rgba(12,12,18,.35)}
+    .btn:hover{transform:translateY(-1px)}
+
+    /* ===== Rows ===== */
+    .section{padding:24px 18px}
+    .row{position:relative}
+    .row-title{margin:0 0 12px 6px;font-size:18px}
+    .track{display:grid;grid-auto-flow:column;grid-auto-columns: minmax(140px, 1fr);gap:12px;overflow-x:auto;scroll-behavior:smooth;padding-bottom:8px}
+    .track::-webkit-scrollbar{height:8px}
+    .track::-webkit-scrollbar-thumb{background:#262634;border-radius:999px}
+    .card{position:relative;border-radius:12px;overflow:hidden;background:#0f0f14;border:1px solid #252536;transition:transform .2s ease, box-shadow .2s ease}
+    .card img{aspect-ratio: 2/3;object-fit:cover;width:100%;}
+    .card:hover{transform:translateY(-4px) scale(1.03);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .chip{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);font-size:12px;padding:4px 8px;border-radius:999px;font-weight:700}
+    .quick{position:absolute;inset:auto 8px 8px 8px;display:flex;gap:8px;opacity:0;transform:translateY(6px);transition:all .18s ease}
+    .card:hover .quick{opacity:1;transform:none}
+    .quick .mini{flex:1;display:flex;align-items:center;justify-content:center;padding:8px;border-radius:10px;background:rgba(15,15,20,.7);border:1px solid #2a2a38}
+
+    .arrow{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.55);border:1px solid #2a2a38;border-radius:50%;width:38px;height:38px;display:grid;place-items:center}
+    .arrow:hover{filter:brightness(1.15)}
+    .arrow.left{left:-4px}
+    .arrow.right{right:-4px}
+
+    /* ===== Modal ===== */
+    .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:60}
+    .modal.show{display:grid}
+    .modal-card{width:min(940px,94vw);background:linear-gradient(180deg,#14141b,#0e0e14);border:1px solid #2a2a38;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.55)}
+    .modal-media{position:relative;background:#000}
+    .modal-media iframe,.modal-media video{width:100%;height:54vh;display:block}
+    .modal-close{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.5);border:1px solid #2a2a38;color:#fff;border-radius:10px;padding:8px 12px}
+    .modal-body{display:grid;grid-template-columns: 1fr; gap:16px;padding:16px}
+    .meta{display:flex;gap:12px;font-size:13px;color:#cfcfcf;flex-wrap:wrap}
+    .pill{padding:4px 8px;border-radius:999px;border:1px solid #2a2a38;background:#1a1a24}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}
+
+    /* ===== Footer ===== */
+    footer{padding:40px 18px;color:#9a9aa5}
+
+    @media (min-width: 920px){
+      .modal-body{grid-template-columns: 2fr 1fr}
+    }
+  </style>
 </head>
 <body>
 
-<!-- Tela de carregamento -->
-<div id="loading-screen">
-  <div class="spinner"></div>
-  <h1>Haddyflix</h1>
-</div>
+  <!-- LOADING -->
+  <section id="loading-screen" aria-label="Carregando Haddyflix">
+    <div class="spinner" aria-hidden="true"></div>
+    <div class="logo">Haddy<span class="accent">flix</span></div>
+    <div class="loading-bar" aria-hidden="true"><span></span></div>
+  </section>
 
-<!-- Seleção de perfis -->
-<div id="profiles-screen" class="hidden">
-  <h2>Selecione seu perfil</h2>
-  <div class="profiles">
-    <div class="profile" onclick="enterStreaming('Haddy')">
-      <img src="images/profile1.png" alt="Haddy">
-      <p>Haddy</p>
+  <!-- PROFILES -->
+  <section id="profiles-screen" aria-label="Seleção de perfis">
+    <h2>Quem está assistindo?</h2>
+    <div class="profiles">
+      <article class="profile-card" data-name="Haddy">
+        <div class="avatar"><img alt="Perfil Haddy" src="https://api.dicebear.com/7.x/thumbs/svg?seed=Haddy&radius=22&backgroundType=gradientLinear&shapeColor=4b5563"/></div>
+        <div class="profile-name">Haddy</div>
+        <button class="start-btn" type="button">Entrar</button>
+      </article>
+      <article class="profile-card" data-name="Convidado">
+        <div class="avatar"><img alt="Perfil Convidado" src="https://api.dicebear.com/7.x/thumbs/svg?seed=Guest&radius=22&backgroundType=gradientLinear&shapeColor=7f1d1d"/></div>
+        <div class="profile-name">Convidado</div>
+        <button class="start-btn" type="button">Entrar</button>
+      </article>
+      <article class="profile-card" data-name="Família">
+        <div class="avatar"><img alt="Perfil Família" src="https://api.dicebear.com/7.x/thumbs/svg?seed=Family&radius=22&backgroundType=gradientLinear&shapeColor=1e3a8a"/></div>
+        <div class="profile-name">Família</div>
+        <button class="start-btn" type="button">Entrar</button>
+      </article>
     </div>
-    <div class="profile" onclick="enterStreaming('Guest')">
-      <img src="images/profile2.png" alt="Guest">
-      <p>Guest</p>
-    </div>
-  </div>
-</div>
+  </section>
 
-<!-- Página principal do streaming -->
-<div id="streaming-screen" class="hidden">
-  <header>
-    <h1>Haddyflix</h1>
-    <nav>
-      <ul>
-        <li>Início</li>
-        <li>Séries</li>
-        <li>Filmes</li>
-        <li>Minha Lista</li>
-      </ul>
-    </nav>
-  </header>
-  <main>
-    <section class="category">
-      <h2>Filmes Populares</h2>
-      <div class="movies">
-        <div class="movie" onclick="openModal('Filme 1')">
-          <img src="images/movie1.jpg" alt="Filme 1">
-          <div class="overlay">▶</div>
+  <!-- APP / HOME -->
+  <div id="app">
+    <header class="appbar">
+      <div class="bar">
+        <div class="brand">Haddy<span class="accent">flix</span></div>
+        <nav class="nav" aria-label="Navegação principal">
+          <a href="#" data-nav>Início</a>
+          <a href="#" data-nav>Séries</a>
+          <a href="#" data-nav>Filmes</a>
+          <a href="#" data-nav>Minha Lista</a>
+        </nav>
+        <div class="spacer"></div>
+        <div class="profile-mini">
+          <img id="mini-avatar" alt="Avatar do perfil" src="https://api.dicebear.com/7.x/thumbs/svg?seed=Haddy&radius=22&backgroundType=gradientLinear"/>
+          <button class="swap" id="swapProfile" type="button">Trocar perfil</button>
         </div>
-        <div class="movie" onclick="openModal('Filme 2')">
-          <img src="images/movie2.jpg" alt="Filme 2">
-          <div class="overlay">▶</div>
-        </div>
-        <div class="movie" onclick="openModal('Filme 3')">
-          <img src="images/movie3.jpg" alt="Filme 3">
-          <div class="overlay">▶</div>
+      </div>
+    </header>
+
+    <section class="hero" id="hero">
+      <div class="bg" id="heroBg" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <span class="tag" id="heroTag">Original Haddyflix</span>
+        <h1 class="hero-title" id="heroTitle">Título em destaque</h1>
+        <p id="heroDesc" style="max-width:68ch;opacity:.9"></p>
+        <div class="hero-actions">
+          <button class="btn primary" id="heroPlay">▶ Assistir</button>
+          <button class="btn ghost" id="heroMore">ℹ Mais informações</button>
         </div>
       </div>
     </section>
-  </main>
 
-  <!-- Modal de filme -->
-  <div id="movie-modal" class="hidden">
-    <div class="modal-content">
-      <span class="close" onclick="closeModal()">&times;</span>
-      <h2 id="movie-title">Título do Filme</h2>
-      <video id="movie-video" controls>
-        <source src="videos/sample.mp4" type="video/mp4">
-        Seu navegador não suporta vídeo.
-      </video>
+    <main id="catalog"></main>
+
+    <footer>
+      Haddyflix — projeto fictício para diversão. Feito com ❤️.
+    </footer>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-media">
+        <button class="modal-close" id="closeModal" aria-label="Fechar">✕</button>
+        <iframe id="player" src="" title="Trailer" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+      </div>
+      <div class="modal-body">
+        <div>
+          <h2 id="modalTitle" style="margin:.2rem 0 0.6rem"></h2>
+          <div class="meta" id="modalMeta"></div>
+          <p id="modalDesc" style="opacity:.9"></p>
+          <div class="actions">
+            <button class="btn primary" id="modalPlay">▶ Assistir agora</button>
+            <button class="btn ghost" id="toggleList">＋ Minha Lista</button>
+          </div>
+        </div>
+        <div>
+          <div class="pill" style="margin-bottom:8px">Gêneros</div>
+          <div id="modalGenres" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="script.js"></script>
+  <script>
+    // ===== Data fictícia =====
+    const DATA = [
+      {
+        category:"Originais Haddyflix",
+        items:[
+          {id:"hf-001", title:"Cidade Fantasma", year:2025, duration:"2h 07m", rated:"14", 
+            img:"https://picsum.photos/seed/haddy001/300/450", backdrop:"https://picsum.photos/seed/haddy001/1280/720",
+            desc:"Uma detetive investiga desaparecimentos em um bairro onde nada é o que parece.",
+            genres:["Mistério","Suspense","Drama"], trailer:"dQw4w9WgXcQ"},
+          {id:"hf-002", title:"Aurora do Norte", year:2024, duration:"1h 54m", rated:"12",
+            img:"https://picsum.photos/seed/haddy002/300/450", backdrop:"https://picsum.photos/seed/haddy002/1280/720",
+            desc:"Dois desconhecidos se conectam durante uma tempestade magnética inesquecível.",
+            genres:["Romance","Drama"], trailer:"ysz5S6PUM-U"},
+          {id:"hf-003", title:"Operação Neblina", year:2023, duration:"2h 12m", rated:"16",
+            img:"https://picsum.photos/seed/haddy003/300/450", backdrop:"https://picsum.photos/seed/haddy003/1280/720",
+            desc:"Uma equipe clandestina enfrenta uma conspiração que ameaça a cidade.",
+            genres:["Ação","Thriller"], trailer:"oHg5SJYRHA0"}
+        ]
+      },
+      {
+        category:"Em alta",
+        items:[
+          {id:"hf-101", title:"Circuito Zero", year:2022, duration:"1h 40m", rated:"12",
+            img:"https://picsum.photos/seed/haddy101/300/450", backdrop:"https://picsum.photos/seed/haddy101/1280/720",
+            desc:"Pilotos de rua disputam a última corrida antes de uma grande operação policial.",
+            genres:["Ação","Crime"], trailer:"3GwjfUFyY6M"},
+          {id:"hf-102", title:"Rindo de Nervoso", year:2021, duration:"1h 32m", rated:"10",
+            img:"https://picsum.photos/seed/haddy102/300/450", backdrop:"https://picsum.photos/seed/haddy102/1280/720",
+            desc:"Um comediante tenta salvar seu show depois de um meme desastroso.",
+            genres:["Comédia"], trailer:"EE-xtCF3T94"},
+          {id:"hf-103", title:"Horizonte de Vidro", year:2024, duration:"1h 59m", rated:"12",
+            img:"https://picsum.photos/seed/haddy103/300/450", backdrop:"https://picsum.photos/seed/haddy103/1280/720",
+            desc:"Uma arquiteta precisa escolher entre a carreira dos sonhos e a família.",
+            genres:["Drama"], trailer:"l482T0yNkeo"}
+        ]
+      },
+      {
+        category:"Ação",
+        items:[
+          {id:"hf-201", title:"Zona Vermelha", year:2020, duration:"1h 47m", rated:"16",
+            img:"https://picsum.photos/seed/haddy201/300/450", backdrop:"https://picsum.photos/seed/haddy201/1280/720",
+            desc:"Um ex-agente volta à ativa para resgatar sua irmã.", genres:["Ação","Suspense"], trailer:"ub82Xb1C8os"},
+          {id:"hf-202", title:"Ponto Cego", year:2023, duration:"2h 03m", rated:"14",
+            img:"https://picsum.photos/seed/haddy202/300/450", backdrop:"https://picsum.photos/seed/haddy202/1280/720",
+            desc:"Caçada urbana a um hacker que sabe demais.", genres:["Ação","Tech"], trailer:"9bZkp7q19f0"},
+          {id:"hf-203", title:"Última Fronteira", year:2022, duration:"2h 16m", rated:"12",
+            img:"https://picsum.photos/seed/haddy203/300/450", backdrop:"https://picsum.photos/seed/haddy203/1280/720",
+            desc:"Exploradores enfrentam o desconhecido às portas do espaço.", genres:["Sci‑fi","Aventura"], trailer:"fJ9rUzIMcZQ"}
+        ]
+      },
+      {
+        category:"Comédia",
+        items:[
+          {id:"hf-301", title:"Apartamento 404", year:2021, duration:"1h 20m", rated:"10",
+            img:"https://picsum.photos/seed/haddy301/300/450", backdrop:"https://picsum.photos/seed/haddy301/1280/720",
+            desc:"Três vizinhos improváveis dividem um cachorro e muitos problemas.", genres:["Comédia"], trailer:"kXYiU_JCYtU"},
+          {id:"hf-302", title:"Plano (Quase) Perfeito", year:2020, duration:"1h 35m", rated:"12",
+            img:"https://picsum.photos/seed/haddy302/300/450", backdrop:"https://picsum.photos/seed/haddy302/1280/720",
+            desc:"Um golpe romântico dá errado e vira amor verdadeiro.", genres:["Comédia Romântica"], trailer:"tVj0ZTS4WF4"}
+        ]
+      },
+      {
+        category:"Documentários",
+        items:[
+          {id:"hf-401", title:"Belém Invisível", year:2024, duration:"58m", rated:"L",
+            img:"https://picsum.photos/seed/haddy401/300/450", backdrop:"https://picsum.photos/seed/haddy401/1280/720",
+            desc:"Histórias de trabalhadores noturnos que mantêm a cidade viva.", genres:["Doc"], trailer:"hTWKbfoikeg"}
+        ]
+      }
+    ];
+
+    // ===== State =====
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+    let currentProfile = localStorage.getItem('haddy_profile') || null;
+    let myList = new Set(JSON.parse(localStorage.getItem('haddy_list')||'[]'));
+    let currentHero = null; // item em destaque
+    let currentItem = null; // item aberto no modal
+
+    function saveList(){ localStorage.setItem('haddy_list', JSON.stringify(Array.from(myList))); }
+
+    // ===== Loading flow =====
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(()=>{
+        $('#loading-screen').classList.add('hidden');
+        $('#profiles-screen').classList.add('show');
+        if(currentProfile){
+          // pular direto se já tiver perfil
+          setTimeout(()=> enterProfile(currentProfile), 450);
+        }
+      }, 1800);
+    });
+
+    // perfis -> entrar
+    $$('#profiles-screen .profile-card').forEach(card => {
+      card.querySelector('.start-btn').addEventListener('click', ()=>{
+        enterProfile(card.dataset.name);
+      });
+    });
+
+    $('#swapProfile').addEventListener('click', ()=>{
+      currentProfile = null; localStorage.removeItem('haddy_profile');
+      $('#app').classList.remove('show');
+      $('#profiles-screen').classList.add('show');
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+
+    function enterProfile(name){
+      currentProfile = name; localStorage.setItem('haddy_profile', name);
+      // set mini avatar seed to name
+      $('#mini-avatar').src = `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(name)}&radius=22&backgroundType=gradientLinear`;
+      $('#profiles-screen').classList.remove('show');
+      buildHome();
+      $('#app').classList.add('show');
+    }
+
+    // ===== Build home =====
+    function buildHome(){
+      const firstCat = DATA[0];
+      currentHero = firstCat.items[0];
+      updateHero(currentHero);
+
+      const catalog = $('#catalog');
+      catalog.innerHTML = '';
+      DATA.forEach(section => {
+        const sec = document.createElement('section');
+        sec.className = 'section';
+        sec.innerHTML = `
+          <div class="row">
+            <h3 class="row-title">${section.category}</h3>
+            <button class="arrow left" aria-label="voltar">‹</button>
+            <div class="track"></div>
+            <button class="arrow right" aria-label="avançar">›</button>
+          </div>`;
+        const track = $('.track', sec);
+        section.items.forEach(item => track.appendChild(createCard(item)));
+        const prev = $('.arrow.left', sec); const next = $('.arrow.right', sec);
+        prev.addEventListener('click', ()=> track.scrollBy({left: -track.clientWidth*0.9, behavior:'smooth'}));
+        next.addEventListener('click', ()=> track.scrollBy({left: track.clientWidth*0.9, behavior:'smooth'}));
+        catalog.appendChild(sec);
+      });
+
+      // hero actions
+      $('#heroPlay').onclick = ()=> openModal(currentHero, true);
+      $('#heroMore').onclick = ()=> openModal(currentHero, false);
+    }
+
+    function updateHero(item){
+      $('#heroBg').style.backgroundImage = `url('${item.backdrop}')`;
+      $('#heroTitle').textContent = item.title;
+      $('#heroDesc').textContent = item.desc;
+      $('#heroTag').textContent = 'Original Haddyflix';
+    }
+
+    function createCard(item){
+      const el = document.createElement('article');
+      el.className = 'card';
+      el.innerHTML = `
+        <span class="chip">${item.rated}</span>
+        <img loading="lazy" src="${item.img}" alt="Poster de ${item.title}">
+        <div class="quick">
+          <button class="mini" title="Assistir">▶</button>
+          <button class="mini" title="Mais informações">ℹ</button>
+          <button class="mini" title="Minha Lista">${myList.has(item.id)?'✓':'＋'}</button>
+        </div>`;
+      const [play, info, add] = $$('.mini', el);
+      el.addEventListener('click', (e)=>{ if(e.target===play){openModal(item,true)} else if(e.target===info){openModal(item,false)} });
+      play.addEventListener('click', ()=> openModal(item,true));
+      info.addEventListener('click', ()=> openModal(item,false));
+      add.addEventListener('click', (ev)=>{ ev.stopPropagation(); toggleList(item, add);});
+      return el;
+    }
+
+    // ===== Modal =====
+    const modal = $('#modal');
+    const player = $('#player');
+    $('#closeModal').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e)=>{ if(e.target === modal) closeModal(); });
+
+    function openModal(item, autoplay){
+      currentItem = item;
+      $('#modalTitle').textContent = item.title;
+      $('#modalDesc').textContent = item.desc;
+      $('#modalMeta').innerHTML = `
+        <span class="pill">${item.year}</span>
+        <span class="pill">${item.duration}</span>
+        <span class="pill">Classificação: ${item.rated}</span>`;
+      const genres = $('#modalGenres');
+      genres.innerHTML = '';
+      item.genres.forEach(g=>{ const p = document.createElement('span'); p.className='pill'; p.textContent=g; genres.appendChild(p); });
+
+      updateToggleButton();
+      const qs = autoplay? '?autoplay=1' : '';
+      player.src = `https://www.youtube-nocookie.com/embed/${item.trailer}${qs}`;
+
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden','false');
+    }
+
+    function closeModal(){
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden','true');
+      player.src = '';
+    }
+
+    $('#modalPlay').addEventListener('click', ()=>{
+      if(!currentItem) return; player.src = `https://www.youtube-nocookie.com/embed/${currentItem.trailer}?autoplay=1`;
+    });
+
+    function toggleList(item, btn){
+      if(myList.has(item.id)) { myList.delete(item.id); if(btn) btn.textContent='＋'; }
+      else { myList.add(item.id); if(btn) btn.textContent='✓'; }
+      saveList();
+      updateToggleButton();
+    }
+
+    function updateToggleButton(){
+      const btn = $('#toggleList');
+      if(!currentItem || !btn) return;
+      const inList = myList.has(currentItem.id);
+      btn.textContent = inList ? '✓ Na Minha Lista' : '＋ Minha Lista';
+      btn.onclick = ()=> toggleList(currentItem);
+    }
+  </script>
 </body>
 </html>
