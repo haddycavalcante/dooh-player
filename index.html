@@ -1,51 +1,81 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<title>Player Vertical Full Height</title>
-<style>
-  html, body {
-    margin: 0; padding: 0; height: 100vh; background: #000; display: flex; justify-content: center; align-items: center;
-  }
-  video {
-    height: 100vh;       /* vídeo ocupa toda a altura da tela */
-    width: auto;         /* largura ajusta proporcionalmente */
-    background: black;
-    object-fit: contain; /* mantém proporção e evita corte */
-    display: block;
-  }
-</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Haddyflix</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<video id="player" muted playsinline></video>
+<!-- Tela de carregamento -->
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <h1>Haddyflix</h1>
+</div>
 
-<script>
-  const videos = [
-    "https://raw.githubusercontent.com/haddycavalcante/dooh-player/main/A%20quinta%20onda%20de%20frio%20do%20ano%20vai%20deixar%20os%20pr%C3%B3ximos%20dias%20bastante%20gelad.mp4",
-    "https://raw.githubusercontent.com/haddycavalcante/dooh-player/main/E%20eu%20n%C3%A3o%20sou%20nadinha%20diferente.mp4"
-  ];
+<!-- Seleção de perfis -->
+<div id="profiles-screen" class="hidden">
+  <h2>Selecione seu perfil</h2>
+  <div class="profiles">
+    <div class="profile" onclick="enterStreaming('Haddy')">
+      <img src="images/profile1.png" alt="Haddy">
+      <p>Haddy</p>
+    </div>
+    <div class="profile" onclick="enterStreaming('Guest')">
+      <img src="images/profile2.png" alt="Guest">
+      <p>Guest</p>
+    </div>
+  </div>
+</div>
 
-  const player = document.getElementById('player');
-  let current = 0;
+<!-- Página principal do streaming -->
+<div id="streaming-screen" class="hidden">
+  <header>
+    <h1>Haddyflix</h1>
+    <nav>
+      <ul>
+        <li>Início</li>
+        <li>Séries</li>
+        <li>Filmes</li>
+        <li>Minha Lista</li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    <section class="category">
+      <h2>Filmes Populares</h2>
+      <div class="movies">
+        <div class="movie" onclick="openModal('Filme 1')">
+          <img src="images/movie1.jpg" alt="Filme 1">
+          <div class="overlay">▶</div>
+        </div>
+        <div class="movie" onclick="openModal('Filme 2')">
+          <img src="images/movie2.jpg" alt="Filme 2">
+          <div class="overlay">▶</div>
+        </div>
+        <div class="movie" onclick="openModal('Filme 3')">
+          <img src="images/movie3.jpg" alt="Filme 3">
+          <div class="overlay">▶</div>
+        </div>
+      </div>
+    </section>
+  </main>
 
-  function playVideo(index) {
-    player.src = videos[index];
-    player.load();
+  <!-- Modal de filme -->
+  <div id="movie-modal" class="hidden">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h2 id="movie-title">Título do Filme</h2>
+      <video id="movie-video" controls>
+        <source src="videos/sample.mp4" type="video/mp4">
+        Seu navegador não suporta vídeo.
+      </video>
+    </div>
+  </div>
+</div>
 
-    // Espera carregar suficiente para tocar sem travar
-    player.oncanplaythrough = () => {
-      player.play();
-    };
-  }
-
-  player.addEventListener('ended', () => {
-    current = (current + 1) % videos.length;
-    playVideo(current);
-  });
-
-  playVideo(current);
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
