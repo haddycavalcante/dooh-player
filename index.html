@@ -41,7 +41,7 @@
 const canvas = document.getElementById('globeCanvas');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, canvas.clientWidth / canvas.clientHeight, 0.1, 2000);
-camera.position.z = 400;
+camera.position.set(0,0,400);
 
 const renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: true});
 renderer.setSize(canvas.clientWidth, canvas.clientHeight);
@@ -51,8 +51,8 @@ const Globe = new ThreeGlobe()
   .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
   .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
   .arcsData([
-    { startLat: -1.455, startLng: -48.503, endLat: -26.5225, endLng: 31.4659 },
-    { startLat: -26.5225, startLng: 31.4659, endLat: -30.5595, endLng: 22.9375 }
+    { startLat: -1.455, startLng: -48.503, endLat: -26.5225, endLng: 31.4659, color:'red' },
+    { startLat: -26.5225, startLng: 31.4659, endLat: -30.5595, endLng: 22.9375, color:'yellow' }
   ])
   .arcColor('color')
   .arcDashLength(0.4)
@@ -96,19 +96,66 @@ function latLngToVector3(lat, lng, radius) {
 function updateLabels() {
   const vector = new THREE.Vector3();
   labelDivs.forEach(l => {
-    vector.copy(latLngToVector3(l.lat, l.lng, Globe.globeRadius + 5)); // +5 para ficar fora do globo
+    vector.copy(latLngToVector3(l.lat, l.lng, Globe.globeRadius + 5));
     vector.project(camera);
     const x = (vector.x * 0.5 + 0.5) * canvas.clientWidth;
     const y = (-vector.y * 0.5 + 0.5) * canvas.clientHeight;
     l.div.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
+    l.div.style.opacity = vector.z > 1 ? 0 : 1;
   });
+}
+
+// === Avião ===
+const airplaneGeometry = new THREE.ConeGeometry(1, 4, 8);
+const airplaneMaterial = new THREE.MeshBasicMaterial({ color: 'red' });
+const airplane = new THREE.Mesh(airplaneGeometry, airplaneMaterial);
+airplane.rotation.x = Math.PI / 2;
+scene.add(airplane);
+
+// === Rotas ===
+const flightPath1 = { start: {lat:-1.455,lng:-48.503}, end: {lat:-26.5225,lng:31.4659} };
+const flightPath2 = { start: {lat:-26.5225,lng:31.4659}, end: {lat:-30.5595,lng:22.9375} };
+
+let t = 0;
+let currentFlight = 1;
+
+// === Interpolação ===
+function interpolateLatLng(start, end, t) {
+  return {
+    lat: start.lat + (end.lat - start.lat) * t,
+    lng: start.lng + (end.lng - start.lng) * t
+  };
+}
+
+// === Atualizar avião e câmera ===
+function updateAirplaneAndCamera() {
+  t += 0.002;
+  if(t > 1){
+    t = 0;
+    currentFlight = currentFlight === 1 ? 2 : 1;
+  }
+  const path = currentFlight === 1 ? flightPath1 : flightPath2;
+  const pos = interpolateLatLng(path.start, path.end, t);
+  const vec = latLngToVector3(pos.lat, pos.lng, Globe.globeRadius + 2);
+  airplane.position.copy(vec);
+
+  // Direção do voo
+  const nextT = Math.min(t + 0.01,1);
+  const nextPos = interpolateLatLng(path.start, path.end, nextT);
+  const nextVec = latLngToVector3(nextPos.lat, nextPos.lng, Globe.globeRadius + 2);
+  airplane.lookAt(nextVec);
+
+  // Zoom na cidade atual
+  camera.position.lerp(vec.clone().multiplyScalar(2.5), 0.02);
+  camera.lookAt(vec);
 }
 
 // === Animate ===
 function animate() {
   requestAnimationFrame(animate);
-  Globe.rotation.y += 0.001;
+  Globe.rotation.y += 0.0005; // giro lento do globo
   updateLabels();
+  updateAirplaneAndCamera();
   renderer.render(scene, camera);
 }
 
