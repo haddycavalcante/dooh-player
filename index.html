@@ -34,8 +34,10 @@ scene.add(dirLight);
 const globeRadius = 50;
 const sphereGeometry = new THREE.SphereGeometry(globeRadius, 64, 64);
 const textureLoader = new THREE.TextureLoader();
-const earthTexture = textureLoader.load('https://raw.githubusercontent.com/roblabs/three-globe/master/example/img/earth-blue-marble.jpg');
-const earthBump = textureLoader.load('https://raw.githubusercontent.com/roblabs/three-globe/master/example/img/earth-topology.png');
+
+// Links online confiáveis via JsDelivr
+const earthTexture = textureLoader.load('https://cdn.jsdelivr.net/gh/roblabs/three-globe/example/img/earth-blue-marble.jpg');
+const earthBump = textureLoader.load('https://cdn.jsdelivr.net/gh/roblabs/three-globe/example/img/earth-topology.png');
 
 const sphereMaterial = new THREE.MeshPhongMaterial({ map: earthTexture, bumpMap: earthBump, bumpScale: 1 });
 const globe = new THREE.Mesh(sphereGeometry, sphereMaterial);
@@ -122,7 +124,6 @@ function animateAirplane(){
   airplane.position.copy(pos);
   airplane.lookAt(nextPos);
 
-  // Camera lerp
   camera.position.lerp(pos.clone().multiplyScalar(2.5),0.02);
   camera.lookAt(pos);
 }
