@@ -1,149 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Flight Animation Globe - Three.js</title>
-<style>
-  body, html { margin:0; padding:0; overflow:hidden; background:#000; height:100%; }
-  canvas { display:block; width:100vw; height:100vh; }
-  .tooltip { position:absolute; color:white; font-family:Arial; font-size:16px; pointer-events:none; white-space:nowrap; }
-</style>
+  <meta charset="UTF-8">
+  <title>Flight Animation Globe - Three.js</title>
+  <style>
+    body, html { margin:0; padding:0; overflow:hidden; background:#000; height:100%; }
+    canvas { display:block; width:100vw; height:100vh; }
+    .tooltip { position:absolute; color:white; font-family:Arial; font-size:16px; pointer-events:none; white-space:nowrap; }
+  </style>
 </head>
 <body>
-<div id="container"></div>
-<script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
+  <div id="container"></div>
+  <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
+  <script src="https://unpkg.com/three-globe@2.27.4"></script>
+  <script>
+    const globe = new ThreeGlobe()
+      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+      .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+      .showGraticules(true);
 
-<script>
-// === Scene Setup ===
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 2000);
-camera.position.set(0,0,400);
+    const cities = [
+      { name: 'BELÉM / BRAZIL', lat: -1.455, lng: -48.503 },
+      { name: 'ESWATINI', lat: -26.5225, lng: 31.4659 },
+      { name: 'SOUTH AFRICA', lat: -30.5595, lng: 22.9375 }
+    ];
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-document.body.appendChild(renderer.domElement);
+    const arcs = [
+      { start: cities[0], end: cities[1] },
+      { start: cities[1], end: cities[2] }
+    ];
 
-// === Lights ===
-scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-dirLight.position.set(5,3,5);
-scene.add(dirLight);
+    const arcsData = arcs.map(arc => ({
+      startLat: arc.start.lat,
+      startLng: arc.start.lng,
+      endLat: arc.end.lat,
+      endLng: arc.end.lng
+    }));
 
-// === Globe ===
-const globeRadius = 50;
-const sphereGeometry = new THREE.SphereGeometry(globeRadius, 64, 64);
-const textureLoader = new THREE.TextureLoader();
+    const labels = cities.map(city => ({
+      lat: city.lat,
+      lng: city.lng,
+      label: city.name
+    }));
 
-// Links online confiáveis via JsDelivr
-const earthTexture = textureLoader.load('https://cdn.jsdelivr.net/gh/roblabs/three-globe/example/img/earth-blue-marble.jpg');
-const earthBump = textureLoader.load('https://cdn.jsdelivr.net/gh/roblabs/three-globe/example/img/earth-topology.png');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(0, 0, 400);
 
-const sphereMaterial = new THREE.MeshPhongMaterial({ map: earthTexture, bumpMap: earthBump, bumpScale: 1 });
-const globe = new THREE.Mesh(sphereGeometry, sphereMaterial);
-scene.add(globe);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
 
-// === Cities and Labels ===
-const cities = [
-  { name:'BELÉM / BRAZIL', lat:-1.455, lng:-48.503 },
-  { name:'ESWATINI', lat:-26.5225, lng:31.4659 },
-  { name:'SOUTH AFRICA', lat:-30.5595, lng:22.9375 }
-];
+    scene.add(globe);
 
-const labels = cities.map(c=>{
-  const div=document.createElement('div');
-  div.className='tooltip';
-  div.innerText=c.name;
-  document.body.appendChild(div);
-  return {div, lat:c.lat, lng:c.lng};
-});
+    const arcLines = new ThreeGlobe.Arcs()
+      .arcsData(arcsData)
+      .arcColor('red')
+      .arcAltitude(0.1)
+      .arcStroke(2)
+      .arcDashLength(0.5)
+      .arcDashGap(4);
 
-// === Utility ===
-function latLngToVector3(lat,lng,radius){
-  const phi=(90-lat)*(Math.PI/180);
-  const theta=(lng+180)*(Math.PI/180);
-  const x=-radius*Math.sin(phi)*Math.cos(theta);
-  const y=radius*Math.cos(phi);
-  const z=radius*Math.sin(phi)*Math.sin(theta);
-  return new THREE.Vector3(x,y,z);
-}
+    scene.add(arcLines);
 
-function updateLabels(){
-  const vector = new THREE.Vector3();
-  labels.forEach(l=>{
-    vector.copy(latLngToVector3(l.lat,l.lng,globeRadius+2));
-    vector.project(camera);
-    const x = (vector.x*0.5+0.5) * window.innerWidth;
-    const y = (-vector.y*0.5+0.5) * window.innerHeight;
-    l.div.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
-    l.div.style.opacity = vector.z>1 ? 0 : 1;
-  });
-}
+    const labelElements = labels.map(label => {
+      const div = document.createElement('div');
+      div.className = 'tooltip';
+      div.innerText = label.label;
+      document.body.appendChild(div);
+      return { div, lat: label.lat, lng: label.lng };
+    });
 
-// === Arcs ===
-function createArc(start, end, segments=100){
-  const points = [];
-  for(let i=0;i<=segments;i++){
-    const t = i/segments;
-    const lat = start.lat + (end.lat-start.lat)*t;
-    const lng = start.lng + (end.lng-start.lng)*t;
-    const vec = latLngToVector3(lat,lng,globeRadius+1 + 5*Math.sin(Math.PI*t));
-    points.push(vec);
-  }
-  const curve = new THREE.CatmullRomCurve3(points);
-  const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(200));
-  const material = new THREE.LineBasicMaterial({ color:0xff0000 });
-  const line = new THREE.Line(geometry, material);
-  scene.add(line);
-  return curve;
-}
+    function latLngToVector3(lat, lng, radius) {
+      const phi = (90 - lat) * (Math.PI / 180);
+      const theta = (lng + 180) * (Math.PI / 180);
+      const x = -radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.cos(phi);
+      const z = radius * Math.sin(phi) * Math.sin(theta);
+      return new THREE.Vector3(x, y, z);
+    }
 
-const flightCurves = [
-  createArc(cities[0], cities[1]),
-  createArc(cities[1], cities[2])
-];
+    function updateLabels() {
+      const vector = new THREE.Vector3();
+      labelElements.forEach(l => {
+        vector.copy(latLngToVector3(l.lat, l.lng, 51));
+        vector.project(camera);
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+        l.div.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
+        l.div.style.opacity = vector.z > 1 ? 0 : 1;
+      });
+    }
 
-// === Airplane ===
-const airplane = new THREE.Mesh(
-  new THREE.ConeGeometry(1,4,8),
-  new THREE.MeshBasicMaterial({color:'red'})
-);
-airplane.rotation.x = Math.PI/2;
-scene.add(airplane);
+    let t = 0;
+    let currentFlight = 0;
 
-// === Flight Animation ===
-let t = 0;
-let currentFlight = 0;
+    function animateAirplane() {
+      t += 0.002;
+      if (t > 1) { t = 0; currentFlight = (currentFlight + 1) % arcs.length; }
+      const curve = arcs[currentFlight];
+      const pos = curve.getPointAt(t);
+      const nextPos = curve.getPointAt(Math.min(t + 0.01, 1));
+      airplane.position.copy(pos);
+      airplane.lookAt(nextPos);
 
-function animateAirplane(){
-  t += 0.002;
-  if(t>1){ t=0; currentFlight=(currentFlight+1)%flightCurves.length; }
-  const curve = flightCurves[currentFlight];
-  const pos = curve.getPointAt(t);
-  const nextPos = curve.getPointAt(Math.min(t+0.01,1));
-  airplane.position.copy(pos);
-  airplane.lookAt(nextPos);
+      camera.position.lerp(pos.clone().multiplyScalar(2.5), 0.02);
+      camera.lookAt(pos);
+    }
 
-  camera.position.lerp(pos.clone().multiplyScalar(2.5),0.02);
-  camera.lookAt(pos);
-}
+    function animate() {
+      requestAnimationFrame(animate);
+      globe.rotation.y += 0.0005;
+      updateLabels();
+      animateAirplane();
+      renderer.render(scene, camera);
+    }
+    animate();
 
-// === Animate Loop ===
-function animate(){
-  requestAnimationFrame(animate);
-  globe.rotation.y += 0.0005;
-  updateLabels();
-  animateAirplane();
-  renderer.render(scene,camera);
-}
-animate();
-
-// === Resize ===
-window.addEventListener('resize',()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-</script>
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
 </body>
 </html>
