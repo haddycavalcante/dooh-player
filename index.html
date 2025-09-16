@@ -44,7 +44,6 @@ const labels = cities.map(c=>{
   return {div, lat:c.lat, lng:c.lng};
 });
 
-// === Função utilitária ===
 function latLngToVector3(lat,lng,radius){
   const phi=(90-lat)*(Math.PI/180);
   const theta=(lng+180)*(Math.PI/180);
@@ -52,18 +51,6 @@ function latLngToVector3(lat,lng,radius){
   const y=radius*Math.cos(phi);
   const z=radius*Math.sin(phi)*Math.sin(theta);
   return new THREE.Vector3(x,y,z);
-}
-
-function updateLabels(){
-  const vector=new THREE.Vector3();
-  labels.forEach(l=>{
-    vector.copy(latLngToVector3(l.lat,l.lng,Globe.globeRadius+2));
-    vector.project(camera);
-    const x=(vector.x*0.5+0.5)*window.innerWidth;
-    const y=(-vector.y*0.5+0.5)*window.innerHeight;
-    l.div.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px)`;
-    l.div.style.opacity=vector.z>1?0:1;
-  });
 }
 
 // === Avião ===
@@ -85,32 +72,33 @@ function interpolate(start,end,t){
   return { lat:start.lat+(end.lat-start.lat)*t, lng:start.lng+(end.lng-start.lng)*t };
 }
 
-// === Criar o globo e adicionar à cena só depois do carregamento ===
-const Globe = new ThreeGlobe()
-  .globeImageUrl('https://raw.githubusercontent.com/roblabs/three-globe/master/example/img/earth-blue-marble.jpg')
-  .bumpImageUrl('https://raw.githubusercontent.com/roblabs/three-globe/master/example/img/earth-topology.png')
-  .arcsData([
-    { startLat:-1.455,startLng:-48.503,endLat:-26.5225,endLng:31.4659,color:'red' },
-    { startLat:-26.5225,startLng:31.4659,endLat:-30.5595,endLng:22.9375,color:'yellow' }
-  ])
-  .arcColor('color')
-  .arcDashLength(0.4)
-  .arcDashGap(4)
-  .arcDashInitialGap(()=>Math.random()*5)
-  .arcDashAnimateTime(4000)
-  .arcStroke(1.5);
+// === Criar o globo ===
+let Globe = null;
+const globeTextureUrl = 'https://raw.githubusercontent.com/roblabs/three-globe/master/example/img/earth-blue-marble.jpg';
+const globeBumpUrl = 'https://raw.githubusercontent.com/roblabs/three-globe/master/example/img/earth-topology.png';
 
-// Garantir que o globo só seja renderizado quando a textura carregar
-new THREE.TextureLoader().load(
-  'https://raw.githubusercontent.com/roblabs/three-globe/master/example/img/earth-blue-marble.jpg',
-  function(texture){
-    Globe.globeImageUrl(texture.image.src);
-    scene.add(Globe);
-  }
-);
+// Carregar textura e criar o globo
+new THREE.TextureLoader().load(globeTextureUrl, (texture)=>{
+  Globe = new ThreeGlobe()
+    .globeImageUrl(texture.image.src)
+    .bumpImageUrl(globeBumpUrl)
+    .arcsData([
+      { startLat:-1.455,startLng:-48.503,endLat:-26.5225,endLng:31.4659,color:'red' },
+      { startLat:-26.5225,startLng:31.4659,endLat:-30.5595,endLng:22.9375,color:'yellow' }
+    ])
+    .arcColor('color')
+    .arcDashLength(0.4)
+    .arcDashGap(4)
+    .arcDashInitialGap(()=>Math.random()*5)
+    .arcDashAnimateTime(4000)
+    .arcStroke(1.5);
 
-// === Atualizar avião + câmera ===
+  scene.add(Globe);
+});
+
+// === Atualizar avião + labels + câmera ===
 function updateAirplaneAndCamera(){
+  if(!Globe) return; // esperar o globo carregar
   t+=0.002;
   if(t>1){ t=0; currentFlight=(currentFlight+1)%flights.length; }
   const path=flights[currentFlight];
@@ -124,13 +112,23 @@ function updateAirplaneAndCamera(){
 
   camera.position.lerp(vec.clone().multiplyScalar(2.8),0.02);
   camera.lookAt(vec);
+
+  // atualizar labels
+  const vector=new THREE.Vector3();
+  labels.forEach(l=>{
+    vector.copy(latLngToVector3(l.lat,l.lng,Globe.globeRadius+2));
+    vector.project(camera);
+    const x=(vector.x*0.5+0.5)*window.innerWidth;
+    const y=(-vector.y*0.5+0.5)*window.innerHeight;
+    l.div.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px)`;
+    l.div.style.opacity=vector.z>1?0:1;
+  });
 }
 
 // === Animate ===
 function animate(){
   requestAnimationFrame(animate);
-  if(Globe){ Globe.rotation.y+=0.0005; }
-  updateLabels();
+  if(Globe) Globe.rotation.y+=0.0005;
   updateAirplaneAndCamera();
   renderer.render(scene,camera);
 }
