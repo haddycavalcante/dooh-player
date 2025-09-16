@@ -16,7 +16,7 @@
   }
   #globeCanvas {
     width: 80vw;
-    height: 45vw; /* 16:9 ratio */
+    height: 45vw; /* 16:9 */
     max-width: 1200px;
     max-height: 675px;
     background: #000;
@@ -27,6 +27,7 @@
     font-family: Arial, sans-serif;
     font-size: 16px;
     pointer-events: none;
+    white-space: nowrap;
   }
 </style>
 </head>
@@ -34,26 +35,24 @@
 <canvas id="globeCanvas"></canvas>
 <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
 <script src="https://unpkg.com/three-globe"></script>
-<script src="https://unpkg.com/d3@7"></script>
 
 <script>
 // === Scene Setup ===
 const canvas = document.getElementById('globeCanvas');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, canvas.clientWidth / canvas.clientHeight, 0.1, 2000);
-camera.position.z = 500;
+camera.position.z = 400;
 
 const renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: true});
 renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 
 // === Globe Setup ===
 const Globe = new ThreeGlobe()
-  .globeImageUrl('//unpkg.com/three-globe/example/img/earth-dark.jpg')
-  .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-  .pointsData([])
+  .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+  .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
   .arcsData([
-    { startLat: -1.455, startLng: -48.503, endLat: -26.5225, endLng: 31.4659 }, // Belém → Eswatini
-    { startLat: -26.5225, startLng: 31.4659, endLat: -30.5595, endLng: 22.9375 }  // Eswatini → South Africa
+    { startLat: -1.455, startLng: -48.503, endLat: -26.5225, endLng: 31.4659 },
+    { startLat: -26.5225, startLng: 31.4659, endLat: -30.5595, endLng: 22.9375 }
   ])
   .arcColor('color')
   .arcDashLength(0.4)
@@ -65,13 +64,12 @@ const Globe = new ThreeGlobe()
 scene.add(Globe);
 
 // === Lights ===
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-scene.add(ambientLight);
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-directionalLight.position.set(5,3,5);
-scene.add(directionalLight);
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+dirLight.position.set(5,3,5);
+scene.add(dirLight);
 
-// === Country Labels ===
+// === Labels ===
 const labels = [
   { name: 'BELÉM / BRAZIL', lat: -1.455, lng: -48.503 },
   { name: 'ESWATINI', lat: -26.5225, lng: 31.4659 },
@@ -86,7 +84,6 @@ const labelDivs = labels.map(l => {
   return {div, lat: l.lat, lng: l.lng};
 });
 
-// === Convert Lat/Lng to XYZ ===
 function latLngToVector3(lat, lng, radius) {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lng + 180) * (Math.PI / 180);
@@ -96,11 +93,10 @@ function latLngToVector3(lat, lng, radius) {
   return new THREE.Vector3(x, y, z);
 }
 
-// === Animate Labels ===
 function updateLabels() {
   const vector = new THREE.Vector3();
   labelDivs.forEach(l => {
-    vector.copy(latLngToVector3(l.lat, l.lng, Globe.globeRadius));
+    vector.copy(latLngToVector3(l.lat, l.lng, Globe.globeRadius + 5)); // +5 para ficar fora do globo
     vector.project(camera);
     const x = (vector.x * 0.5 + 0.5) * canvas.clientWidth;
     const y = (-vector.y * 0.5 + 0.5) * canvas.clientHeight;
@@ -108,17 +104,17 @@ function updateLabels() {
   });
 }
 
-// === Animation Loop ===
+// === Animate ===
 function animate() {
   requestAnimationFrame(animate);
-  Globe.rotation.y += 0.001; // slow globe rotation
+  Globe.rotation.y += 0.001;
   updateLabels();
   renderer.render(scene, camera);
 }
 
 animate();
 
-// === Handle Resize ===
+// === Resize ===
 window.addEventListener('resize', () => {
   camera.aspect = canvas.clientWidth / canvas.clientHeight;
   camera.updateProjectionMatrix();
